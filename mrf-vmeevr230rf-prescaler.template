@@ -1,0 +1,7 @@
+record(longout, "GBL-TI-$(DEVICE):setPrescalar$(PRESCALER)")
+{
+	field(DTYP, "evr")
+	field(OUT, 	"@$(DEVICE):setPrescalar prescalar=$(PRESCALER)")
+	field(VAL,	"$(VALUE)")
+	field(PINI,	"YES")
+}

@@ -1,0 +1,2 @@
+pattern	{	NAME	DEVICE	PDP		ENABLE	DELAY	WIDTH	}
+		{	SHAKER	EVR0	0		0		0		0		}

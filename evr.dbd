@@ -1,0 +1,6 @@
+registrar(evrRegister)
+driver(drvevr)
+device(bi,		INST_IO, 	bievr,		"evr")
+device(bo,		INST_IO, 	boevr,		"evr")
+device(ao,		INST_IO, 	aoevr,		"evr")
+device(longout,	INST_IO, 	longoutevr,	"evr")

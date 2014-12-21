@@ -1,0 +1,7 @@
+pattern	{	NAME		DEVICE	PRESCALER	VALUE	}
+		{	Prescaler	EVR0	0			1		}
+		{	Prescaler	EVR0	1			1		}
+		{	Prescaler	EVR0	2			1		}
+		{	Prescaler	EVR1	0			1		}
+		{	Prescaler	EVR1	1			1		}
+		{	Prescaler	EVR1	2			1		}

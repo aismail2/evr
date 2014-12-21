@@ -1,0 +1,30 @@
+record(stringout, "GBL-TI-$(DEVICE):getPdp$(PDP)Name")
+{
+	field(VAL, 	"$(NAME)")
+	field(PINI, "YES")
+}
+record(bo, "GBL-TI-$(DEVICE):enablePdp$(PDP)")
+{
+	field(DTYP, "evr")
+	field(OUT,	"@$(DEVICE):enablePdp pdp=$(PDP)")
+	field(RVAL,	"$(ENABLE)")
+	field(PINI,	"YES")
+	field(ZNAM, "Disable")
+	field(ONAM, "Enable")
+}
+record(ao, "GBL-TI-$(DEVICE):setPdp$(PDP)Delay")
+{
+	field(DTYP, "evr")
+	field(OUT,	"@$(DEVICE):setPdpDelay pdp=$(PDP)")
+	field(VAL,	"$(DELAY)")
+	field(PINI,	"YES")
+	field(PREC,	"3")
+}
+record(ao, "GBL-TI-$(DEVICE):setPdp$(PDP)Width")
+{
+	field(DTYP, "evr")
+	field(OUT,	"@$(DEVICE):setPdpWidth pdp=$(PDP)")
+	field(RVAL,	"$(WIDTH)")
+	field(PINI,	"YES")
+	field(PREC,	"3")
+}
