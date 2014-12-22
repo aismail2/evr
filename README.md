@@ -12,6 +12,8 @@ All control servers at SESAME run on Linux/x86 platforms. While the VME-EVR230 i
 
 Features
 ========
+The driver implements the following features:
+The driver does not implement the following features:
 
 Installation
 ============
