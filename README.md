@@ -1,6 +1,6 @@
-EVR
-===
-Evr is an EPICS driver for controlling the VME-EVR230 event receiver over the nework.
+Introduction
+============
+Evr is an EPICS driver for controlling the VME-EVR230 event receiver over the nework. This driver is currently deployed at SESAME (www.sesame.org.jo).
 
 Background
 ==========
@@ -19,4 +19,4 @@ The driver does not implement the following features:
 
 Installation
 ============
-Clone the repository and integrate the driver with the EPICS/support framework. Look in the "evr" folder for examples of database and startup files.
+Clone the repository and integrate the driver with your EPICS/support framework. Look in the "evr" folder for examples of database and startup files.
