@@ -109,6 +109,15 @@ typedef enum
  */
 void*	evr_open			(char *name);
 /**
+ * @brief	Sets the clock divisor
+ *
+ * Divisor = event-frequency/1MHz. For example, at an event frequency of 125MHz, divisor = 125
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @return	0 on success, -1 on failure
+ */
+long	evr_setClock		(void* device, uint16_t divider);
+/**
  * @brief	Flushes event mapping RAM
  *
  * @param	*dev	:	A pointer to the device being acted upon
@@ -131,50 +140,6 @@ long	evr_enable			(void* device, bool enable);
  */
 long	evr_isEnabled		(void* device);
 /**
- * @brief	Enables/disables a level output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	level	:	The level output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	evr_enableLevel		(void* device, uint8_t level, bool enable);
-/**
- * @brief	Enables/disables a trigger output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The trigger output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	evr_enableTrigger	(void* device, uint8_t trigger, bool enable);
-/**
- * @brief	Enables/disables a PDP output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The PDP output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	evr_enablePdp		(void* device, uint8_t pdp, bool enable);
-/**
- * @brief	Enables/disables a DBUS output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The DBUS output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	evr_enableDbus		(void* device, uint8_t dbus, bool enable);
-/**
  * @brief	Enables/disables a pulser output
  *
  * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
@@ -185,6 +150,7 @@ long	evr_enableDbus		(void* device, uint8_t dbus, bool enable);
  * @return	0 on success, -1 on failure
  */
 long	evr_enablePulser	(void* device, uint8_t pulser, bool enable);
+long	evr_isPulserEnabled	(void* device, uint8_t pulser);
 /**
  * @brief	Sets pulser delay
  *
@@ -198,6 +164,7 @@ long	evr_enablePulser	(void* device, uint8_t pulser, bool enable);
  * @return	0 on success, -1 on failure
  */
 long	evr_setPulserDelay	(void* device, uint8_t pulser, float delay);
+long	evr_getPulserDelay	(void* device, uint8_t pulser, double *delay);
 /**
  * @brief	Sets pulser width
  *
@@ -211,6 +178,7 @@ long	evr_setPulserDelay	(void* device, uint8_t pulser, float delay);
  * @return	0 on success, -1 on failure
  */
 long	evr_setPulserWidth	(void* device, uint8_t pulser, float width);
+long	evr_getPulserWidth	(void* device, uint8_t pulser, double *width);
 /**
  * @brief	Resets polarity for all outputs
  *
@@ -229,15 +197,6 @@ long	evr_setPolarity		(void* device);
  */
 long	evr_setEvent		(void* device, uint8_t event, uint16_t map);
 /**
- * @brief	Sets the clock divisor
- *
- * Divisor = event-frequency/1MHz. For example, at an event frequency of 125MHz, divisor = 125
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @return	0 on success, -1 on failure
- */
-long	evr_setClock		(void* device, uint16_t divider);
-/**
  * @brief	Sets selected prescalar
  *
  * @param	*dev		:	A pointer to the device being acted upon
@@ -245,7 +204,8 @@ long	evr_setClock		(void* device, uint16_t divider);
  * @param	prescalar	:	Value of prescalar
  * @return	0 on success, -1 on failure
  */
-long	evr_setPrescalar	(void* device, uint8_t select, uint16_t prescalar);
+long	evr_setPrescaler	(void* device, uint8_t select, uint16_t prescaler);
+long	evr_getPrescaler	(void* device, uint8_t select, uint16_t *prescaler);
 /**
  * @brief	Routes prescalar outputs 0, 1, and 2 to universal outputs 0, 1, and 2 on the front panel
  *
@@ -262,8 +222,23 @@ long	evr_muxFrontPanel	(void* device);
  */
 long	evr_setExternalEvent(void* device, uint8_t event);
 
-long	evr_setPdpPrescalar	(void* device, uint8_t pdp, uint16_t prescaler);
+/**
+ * @brief	Enables/disables a PDP output
+ *
+ * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	trigger	:	The PDP output being acted upon
+ * @param	enable	:	Enables the output if true, disables it if false
+ * @return	0 on success, -1 on failure
+ */
+long	evr_enablePdp		(void* device, uint8_t pdp, bool enable);
+long	evr_isPdpEnabled	(void* device, uint8_t pdp);
+long	evr_setPdpPrescaler	(void* device, uint8_t pdp, uint16_t prescaler);
+long	evr_getPdpPrescaler	(void* device, uint8_t pdp, uint16_t *prescaler);
 long	evr_setPdpDelay		(void* device, uint8_t pdp, float delay);
+long	evr_getPdpDelay		(void* device, uint8_t pdp, double *delay);
 long	evr_setPdpWidth		(void* device, uint8_t pdp, float width);
+long	evr_getPdpWidth		(void* device, uint8_t pdp, double *width);
 
 #endif /*__EVR_H__*/

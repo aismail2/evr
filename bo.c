@@ -33,37 +33,26 @@
 /*EPICS includes*/
 #include <epicsExport.h>
 #include <devSup.h>
-#include <errlog.h>
 #include <dbAccess.h>
 #include <recSup.h>
 #include <boRecord.h>
 
 /*Application includes*/
+#include "parse.h"
 #include "evr.h"
 
 /*Macros*/
-#define NUMBER_OF_OUTPUTS	100
-#define COMMAND_LENGTH		40
-
-typedef struct
-{
-	void*	device;
-	char	name	[NAME_LENGTH];	
-	char	command	[COMMAND_LENGTH];
-	uint8_t	pulser;
-	uint8_t	pdp;
-	uint8_t	prescalar;
-} output_t;
+#define NUMBER_OF_IO	100
 
 /*Local variables*/
-static	output_t	outputs[NUMBER_OF_OUTPUTS];
-static	uint32_t	outputCount;
+static	io_t		io[NUMBER_OF_IO];
+static	uint32_t	ioCount;
 
 /*Function prototypes*/
-static	long	init(int after);
-static	long	initRecord(boRecord *record);
-static 	long	writeRecord(boRecord *record);
-static	void*	thread(void* arg);
+static	long	init		(int after);
+static	long	initRecord	(boRecord *record);
+static 	long	ioRecord	(boRecord *record);
+static	void*	thread		(void* arg);
 
 /*Function definitions*/
 
@@ -76,7 +65,7 @@ static long
 init(int after)
 {
 	if (!after)
-		outputCount = 0;
+		ioCount = 0;
 	return 0;
 }
 
@@ -85,120 +74,55 @@ init(int after)
  *
  * This function is called by recordInit during IOC initialization.
  * For each record of this type, this function attemps the following:
- * 	Checks record parameters
- * 	Parses IO string
- * 	Sets record's private structure
+ * 	Checks record parameters.
+ * 	Parses record parameters.
+ * 	Sets record's private structure.
  *
- * @param	record	:	Pointer to record being initializes
- * @return	0 on success, -1 on failure
+ * @param	record	:	Pointer to record being initialized.
+ * @return	0 on success, -1 on failure.
  */
 static long 
 initRecord(boRecord *record)
 {
-	uint32_t	i;
-	char		*parameters;
-	char		*token;
-	char		tokens[][COMMAND_LENGTH]	=	{"", "", "", "", ""};
-	char		key		[COMMAND_LENGTH];
-	char		value	[COMMAND_LENGTH];
+	int32_t	status;
 
-	if (outputCount >= NUMBER_OF_OUTPUTS)
+	if (ioCount >= NUMBER_OF_IO)
 	{
-		errlogPrintf("Unable to initialize %s: Too many records\r\n", record->name);
+		printf("[evr][initRecord] Unable to initialize %s: Too many records\r\n", record->name);
+		return -1;
+	}
+	if (record->out.type != INST_IO) 
+	{
+		printf("[evr][initRecord] Unable to initialize %s: Illegal io type\r\n", record->name);
 		return -1;
 	}
 
-    if (record->out.type != INST_IO) 
+	status				=	parse(&io[ioCount], record->out.value.instio.string);
+	if (status < 0)
 	{
-		errlogPrintf("Unable to initialize %s: Illegal output type\r\n", record->name);
+		printf("[evr][initRecord] Unable to initialize %s: Could not parse parameters\r\n", record->name);
 		return -1;
 	}
 
-	/*
-	 * Parse output
-	 */
-	parameters		=	record->out.value.instio.string;
-
-	/*Collect tokens*/
-	token	=	strtok(parameters, " ");
-	if (token)
-		strcpy(tokens[0], token);
-	for (i = 1; token != NULL; i++)
+	io[ioCount].device	=	evr_open(io[ioCount].name);	
+	if (io[ioCount].device == NULL)
 	{
-		token	=	strtok(NULL, " ");
-		if (token)
-			strcpy(tokens[i], token);
-	}
-
-	/*Parse name*/
-	token	=	strtok(tokens[0], ":");
-	if (!token)
-	{
-		errlogPrintf("Unable to initialize %s: Missing device name\r\n", record->name);
-		return -1;
-	}
-	strcpy(outputs[outputCount].name, token);
-
-	/*Parse command*/
-	token	=	strtok(NULL, "");
-	if (!token)
-	{
-		errlogPrintf("Unable to initialize %s: Missing command\r\n", record->name);
-		return -1;
-	}
-	strcpy(outputs[outputCount].command, token);
-
-	/*Parse key-value pair*/
-	for (i = 1; strlen(tokens[i]); i++)
-	{
-		/*Parse key*/
-		token	=	strtok(tokens[i], "=");
-		if (!token)
-		{
-			errlogPrintf("Unable to initialize %s: Missing key\r\n", record->name);
-			return -1;
-		}
-		strcpy(key, token);
-
-		/*Parse value*/
-		token	=	strtok(NULL, "");
-		if (!token)
-		{
-			errlogPrintf("Unable to initialize %s: Missing value\r\n", record->name);
-			return -1;
-		}
-		strcpy(value, token);
-
-		/*Process key-value pair*/
-		if (strcmp(key, "pulser") == 0)
-			outputs[outputCount].pulser		=	atoi(value);
-		else if (strcmp(key, "pdp") == 0)
-			outputs[outputCount].pdp		=	atoi(value);
-		else if (strcmp(key, "prescalar") == 0)
-			outputs[outputCount].prescalar	=	atoi(value);
-		else
-			errlogPrintf("Could not process %s=%s\n", key, value);
-	}
-
-	outputs[outputCount].device	=	evr_open(outputs[outputCount].name);	
-	if (outputs[outputCount].device == NULL)
-	{
-		errlogPrintf("Unable to initalize %s: Could not open device\r\n", record->name);
+		printf("[evr][initRecord] Unable to initalize %s: Could not open device\r\n", record->name);
 		return -1;
 	}
 
-	record->dpvt	=	&outputs[outputCount];
-	outputCount++;
+	record->dpvt	=	&io[ioCount];
+	ioCount++;
 
 	return 0;
 }
 
 /** 
- * @brief 	Performs IO on the record
+ * @brief 	Performs IO on the record.
  *
  * This function is called by record support to perform IO on the record
  * This function attemps the following:
- * 	Checks record parameters
+ * 	Checks record parameters.
  * 	Parses IO string
  * 	Sets record's private structure
  * 	Starts thread that performs asynchronous IO on the record
@@ -207,28 +131,25 @@ initRecord(boRecord *record)
  * @return	0 on success, -1 on failure
  */
 static long 
-writeRecord(boRecord *record)
+ioRecord(boRecord *record)
 {
-	int			status;
-	output_t*	private	=	(output_t*)record->dpvt;
+	int32_t		status	=	0;
+	io_t*		private	=	(io_t*)record->dpvt;
 	pthread_t	handle;
-
 
 	if (!record)
 	{
-		errlogPrintf("Unable to read %s: Null record pointer\r\n", record->name);
+		printf("[evr][ioRecord] Unable to perform io on %s: Null record pointer\r\n", record->name);
 		return -1;
 	}
-
     if (!private)
     {
-        errlogPrintf("Unable to read %s: Null private structure pointer\r\n", record->name);
+        printf("[evr][ioRecord] Unable to perform io on %s: Null private structure pointer\r\n", record->name);
         return -1;
     }
-
 	if (!private->command || !strlen(private->command))
 	{
-		errlogPrintf("Unable to read %s: Command is null or empty\r\n", record->name);
+		printf("[evr][ioRecord] Unable to perform io on %s: Command is null or empty\r\n", record->name);
 		return -1;
 	}
 
@@ -242,7 +163,7 @@ writeRecord(boRecord *record)
 		status	=	pthread_create(&handle, NULL, thread, (void*)record);	
 		if (status)
 		{
-			errlogPrintf("Unable to read %s: Unable to create thread\r\n", record->name);
+			printf("[evr][ioRecord] Unable to perform IO on %s: Unable to create thread\r\n", record->name);
 			return -1;
 		}
 		record->pact = true;
@@ -252,6 +173,12 @@ writeRecord(boRecord *record)
 	/*
 	 * This is the second pass, complete the request and return
 	 */
+	if (private->status	< 0)
+	{
+		printf("[evr][ioRecord] Unable to perform IO on %s\r\n", record->name);
+		record->pact=	false;
+		return -1;
+	}
 	record->pact	=	false;
 
 	return 0;
@@ -273,7 +200,7 @@ thread(void* arg)
 {
 	int			status	=	0;
 	boRecord*	record	=	(boRecord*)arg;
-	output_t*	private	=	(output_t*)record->dpvt;
+	io_t*		private	=	(io_t*)record->dpvt;
 
 	/*Detach thread*/
 	pthread_detach(pthread_self());
@@ -281,13 +208,19 @@ thread(void* arg)
 	if (strcmp(private->command, "enable") == 0)
 		status	=	evr_enable(private->device, record->rval);
 	else if (strcmp(private->command, "enablePulser") == 0)
-		status	=	evr_enablePulser(private->device, private->pulser, record->rval);
+		status	=	evr_enablePulser(private->device, private->parameter, record->rval);
 	else if (strcmp(private->command, "enablePdp") == 0)
-		status	=	evr_enablePdp(private->device, private->pdp, record->rval);
+		status	=	evr_enablePdp(private->device, private->parameter, record->rval);
 	else
-		errlogPrintf("Unable to read %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);
+	{
+		printf("[evr][thread] Unable to io %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);
+		private->status	=	-1;
+	}
 	if (status < 0)
-		errlogPrintf("Unable to read %s: Driver thread is unable to read\r\n", record->name);
+	{
+		printf("[evr][thread] Unable to io %s\r\n", record->name);
+		private->status	=	-1;
+	}
 
 	/*Process record*/
 	dbScanLock((struct dbCommon*)record);
@@ -311,6 +244,6 @@ struct devsup {
     init,
     initRecord,
     NULL,
-    writeRecord
+    ioRecord
 };
 epicsExportAddress(dset, boevr);
