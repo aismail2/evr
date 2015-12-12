@@ -5,7 +5,7 @@ vpath	%.tex	source
 
 DOTS		=	
 
-TEX			=	evr.tex\
+TEX			=	evr.tex
 
 OBJECTS		=	$(addprefix build/,$(subst .dot,.jpg,$(DOTS)))		\
 				$(addprefix build/,$(subst .tex,.pdf,$(TEX)))

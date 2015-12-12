@@ -113,12 +113,81 @@ The driver should support the following Event Reciever (EVR) features:
 \begin{itemize}
 	\item Event decoding
 	\item Pulsers
-	\item Prescaled pulsers
+	\item Delayed pulsers
 	\item Prescalers
 	\item Front panel mux
-	\item CML outputs
+	\item Frequency mode CML outputs
 	\item External event
-	\item Fractional synthesizer
+	\item Clock
 \end{itemize}
+
+	\subsection{Event Decoding}
+	\begin{itemize}
+		\item Flush RAM.
+		\item Select active RAM.
+		\item Map general purpose event codes to actions.
+	\end{itemize}
+
+	\subsection{Pulsers}
+	\begin{itemize}
+		\item Enable/disable pulser.
+		\item Program 16-bit pulser pulse width.
+		\item Program 32-bit pulser delay.
+		\item 
+	\end{itemize}
+
+	\subsection{Delayed Pulsers}
+	\begin{itemize}
+		\item Enable/disable delayed pulser.
+		\item Program 16-bit delayed pulser prescaler.
+		\item Program 32-bit delayed pulser pulse width.
+		\item Program 32-bit pulser delay.
+	\end{itemize}
+
+	\subsection{Prescalers}
+	\begin{itemize}
+		\item Set prescalers.
+	\end{itemize}
+
+	\subsection{Front Panel Mux}
+	\begin{itemize}
+		\item Select front panel TTL outputs.
+		\item Select front panel universal outputs.
+	\end{itemize}
+
+	\subsection{Frequency Mode CML Outputs}
+	\begin{itemize}
+		\item Set all CML outputs to frequency mode.
+		\item Enalbe/disable CML output.
+		\item Select CML output and program its prescaler
+	\end{itemize}
+
+	\subsection{External Event}
+	\begin{itemize}
+		\item Enable/disable external event.
+		\item Set external event.
+	\end{itemize}
+
+	\subsection{Clock}
+	\begin{itemize}
+		\item Program clock system to desired frequency.
+		\item Select clock source (external or internal).
+	\end{itemize}
+
+	\subsection{Misc}
+	\begin{itemize}
+		\item Read firmware version.
+		\item Enable/disable EVR.
+	\end{itemize}
+
+\section{Staged Delivery}
+	\subsection{Scope}
+	\subsection{Clock}
+	\subsection{External Event}
+	\subsection{Pulsers}
+	\subsection{Delayed Pulsers}
+	\subsection{Front Panel Mux}
+	\subsection{CML}
+	\subsection{Misc}
 
 \end{document}
