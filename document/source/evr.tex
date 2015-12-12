@@ -1,0 +1,124 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{comment}				% Ignore text
+\usepackage{verbatim}				% Format text exactly as typed
+\usepackage[T1]{fontenc}			% Support for accented characters
+\usepackage{graphicx}				% Include graphics
+\usepackage{hyperref}				% Hyperlinks
+\usepackage{pdfpages}				% Insert pdf files
+\usepackage{appendix}				% Format titles of appendices
+\usepackage{placeins}				% Barriers for floats
+\usepackage{ltablex}				% Variable width long tables
+\usepackage{fancyhdr,lastpage}		% Headers and footers
+\usepackage{mathtools}				% Formulas
+\usepackage{parskip}				% Skip line between paragraphs
+\usepackage[english]{babel}			% Language
+\usepackage[newcommands]{ragged2e}	% Softer left-alignment of text
+\usepackage[hmargin=3cm,vmargin=3cm]{geometry}	% Margins
+
+% -----------------------------------------------------------------------------
+% Document variables ... Change here
+% -----------------------------------------------------------------------------
+\newcommand{\mytitle}		{\uppercase{MRF VME-EVR-230 EPICS DRIVER}}	% Title
+\newcommand{\mysubtitle}	{Design Notes}				% Subtitle
+\newcommand{\mydocument}	{EVR}						% Document Name
+\newcommand{\myrevision}	{0.1}						% Document Revision
+\newcommand{\mydate}		{\today}					% Date
+\newcommand{\myauthor}		{Abdallah Ismail}			% Author
+\newcommand{\myreviewer}	{}							% Reviewer
+\newcommand{\myapprover}	{}							% Approver
+
+\begin{document}
+
+% ------------------------------------------------
+% Title page and document format ... Do not change here
+% ------------------------------------------------
+\thispagestyle{empty}
+
+\centering
+\includegraphics[scale=0.2]{data/company-logo.jpg}\\
+\vspace{.5cm}
+\rule{\linewidth}{0.5pt}\\
+\vspace{.5cm}
+\LARGE \textbf{\mytitle}\\[0.5cm]
+\large \textbf{\mysubtitle}\\
+\vspace{.5cm}
+\rule{\linewidth}{0.5pt}\\
+\vspace{.5cm}
+\normalsize \mydocument ~Rev \myrevision\\
+\vspace{.5cm}
+\normalsize \mydate\\
+
+\vfill
+Authored by:\underline{\makebox[5cm][c]{\myauthor}}\\{\vspace{1cm}}
+Reviewed by:\underline{\makebox[5cm][c]{\myreviewer}}\\{\vspace{1cm}}
+Approved by:\underline{\makebox[5cm][c]{\myapprover}}\\{\vspace{1cm}}
+Access List:\underline{\makebox[5cm][c]{\begin{Form}\CheckBox{Internal}~\CheckBox{External}\end{Form}}}\\{\vspace{1cm}}
+
+\vfill
+\small{SESAME, P.O. Box 7, Allan, 19252, Jordan, www.sesame.org.jo}
+
+\newpage
+
+\pagestyle{fancy}
+\lhead{SESAME}
+\chead{}
+\rhead{\mydocument ~Rev \myrevision}
+\lfoot{\mydate}
+\cfoot{\mytitle}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\fancypagestyle{plain}{
+	\lhead{SESAME}
+	\chead{}
+	\rhead{\mydocument ~Rev \myrevision}
+	\lfoot{\mydate}
+	\cfoot{\mytitle}
+	\renewcommand{\headrulewidth}{0.4pt}
+	\renewcommand{\footrulewidth}{0.4pt}
+}
+
+\rfoot{Page \thepage}
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\large
+\textbf{\uppercase{Revision History}}\\
+\normalsize
+\begin{tabularx}{\linewidth}{ccXX}
+	\hline
+	\textbf{Revision}	&	\textbf{Date}	&	\textbf{Description}	&	\textbf{Author}\\
+	0.1					&	20151212		&	Created document		&	Abdallah Ismail\\
+	\hline
+\end{tabularx}
+\newpage
+
+\tableofcontents
+\newpage
+
+\rfoot{Page \thepage/\pageref{LastPage}}
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\setcounter{table}{0}
+
+\justifying
+
+% ------------------------------------------------------------------------------
+% Begin document
+% ------------------------------------------------------------------------------
+\section*{Abstract}
+
+\section{Requirements}
+The driver should support the following Event Reciever (EVR) features:
+\begin{itemize}
+	\item Event decoding
+	\item Pulsers
+	\item Prescaled pulsers
+	\item Prescalers
+	\item Front panel mux
+	\item CML outputs
+	\item External event
+	\item Fractional synthesizer
+\end{itemize}
+
+\end{document}
