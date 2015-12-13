@@ -92,10 +92,7 @@ typedef enum
 #define REGISTER_BASE_ADDRESS	0x7a000000
 
 /*Number of outputs per device*/
-#define NUMBER_OF_LEVELS		7
-#define NUMBER_OF_TRIGGERS		7
 #define NUMBER_OF_PDP			4
-#define NUMBER_OF_DBUS			8
 #define NUMBER_OF_PULSERS		14
 #define NUMBER_OF_PRESCALARS	3
 
@@ -103,135 +100,22 @@ typedef enum
  * Low level functions
  */
 
-/** 
- * @brief	Searches for device with given name and returns a pointer to it 
- * @return	Void pointer to found device, NULL otherwise
- */
 void*	evr_open			(char *name);
-/**
- * @brief	Sets the clock divisor
- *
- * Divisor = event-frequency/1MHz. For example, at an event frequency of 125MHz, divisor = 125
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @return	0 on success, -1 on failure
- */
-long	evr_setClock		(void* device, uint16_t divider);
-/**
- * @brief	Flushes event mapping RAM
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @return	0 on success, -1 on failure
- */
 long	evr_flush			(void* device);
-/**
- * @brief	Enables/disables the device
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	enable	:	Enables the device if true, disables it if false
- * @return	0 on success, -1 on failure
- */
+long	evr_setClock		(void* device, uint16_t frequency);
+long	evr_getClock		(void* device, uint16_t *frequency);
+long	evr_setExternalEvent(void* device, uint8_t event);
+long	evr_getExternalEvent(void* device, uint8_t *event);
+long	evr_setEvent		(void* device, uint8_t event, uint16_t map);
+long	evr_getEvent		(void* device, uint8_t event, uint16_t *map);
 long	evr_enable			(void* device, bool enable);
-/**
- * @brief	Tests if device is enabled
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @return	0 for false, 1 for true, -1 on failure
- */
 long	evr_isEnabled		(void* device);
-/**
- * @brief	Enables/disables a pulser output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The pulser output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
 long	evr_enablePulser	(void* device, uint8_t pulser, bool enable);
 long	evr_isPulserEnabled	(void* device, uint8_t pulser);
-/**
- * @brief	Sets pulser delay
- *
- * Converts pulser delay from microseconds to clock cycles then writes the value to the delay register of the pulser.
- * Maximum delay in microseconds = 2^32/event_frequency in MHz.
- * For example, @F = 125MHz, Maximum delay = 34.4s (34.4e6 microseconds)
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	pulser	:	The pulser being acted upon
- * @param	delay	:	The delay, in microseconds, of the pulser specified in the second argument
- * @return	0 on success, -1 on failure
- */
 long	evr_setPulserDelay	(void* device, uint8_t pulser, float delay);
 long	evr_getPulserDelay	(void* device, uint8_t pulser, double *delay);
-/**
- * @brief	Sets pulser width
- *
- * Converts pulser width from microseconds to clock cycles then writes the value to the width register of the pulser.
- * Maximum width in microseconds = 2^16/event_frequency in MHz.
- * For example, @F = 125MHz, Maximum width =  524 microseconds
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	pulser	:	The pulser being acted upon
- * @param	width	:	The width, in microseconds, of the pulser specified in the second argument
- * @return	0 on success, -1 on failure
- */
 long	evr_setPulserWidth	(void* device, uint8_t pulser, float width);
 long	evr_getPulserWidth	(void* device, uint8_t pulser, double *width);
-/**
- * @brief	Resets polarity for all outputs
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @return	0 on success, -1 on failure
- */
-long	evr_setPolarity		(void* device);
-/**
- * @brief	Flushes RAM, adds a new event, and sets all of its outputs
- *
- * Gaurantees that a single event is present in RAM by first flushing RAM and then writing the new event.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	event	:	New event to be added
- * @return	0 on success, -1 on failure
- */
-long	evr_setEvent		(void* device, uint8_t event, uint16_t map);
-/**
- * @brief	Sets selected prescalar
- *
- * @param	*dev		:	A pointer to the device being acted upon
- * @param	select		:	Prescalar to be set (0, 1, or 2)
- * @param	prescalar	:	Value of prescalar
- * @return	0 on success, -1 on failure
- */
-long	evr_setPrescaler	(void* device, uint8_t select, uint16_t prescaler);
-long	evr_getPrescaler	(void* device, uint8_t select, uint16_t *prescaler);
-/**
- * @brief	Routes prescalar outputs 0, 1, and 2 to universal outputs 0, 1, and 2 on the front panel
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @return	0 on success, -1 on failure
- */
-long	evr_muxFrontPanel	(void* device);
-/**
- * @brief	Sets external event
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	event	:	Event to be generated upon external trigger	
- * @return	0 on success, -1 on failure
- */
-long	evr_setExternalEvent(void* device, uint8_t event);
-
-/**
- * @brief	Enables/disables a PDP output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The PDP output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
 long	evr_enablePdp		(void* device, uint8_t pdp, bool enable);
 long	evr_isPdpEnabled	(void* device, uint8_t pdp);
 long	evr_setPdpPrescaler	(void* device, uint8_t pdp, uint16_t prescaler);
@@ -240,5 +124,8 @@ long	evr_setPdpDelay		(void* device, uint8_t pdp, float delay);
 long	evr_getPdpDelay		(void* device, uint8_t pdp, double *delay);
 long	evr_setPdpWidth		(void* device, uint8_t pdp, float width);
 long	evr_getPdpWidth		(void* device, uint8_t pdp, double *width);
+long	evr_setPrescaler	(void* device, uint8_t select, uint16_t prescaler);
+long	evr_getPrescaler	(void* device, uint8_t select, uint16_t *prescaler);
+long	evr_multiplex		(void* device, uint8_t output, uint8_t source);
 
 #endif /*__EVR_H__*/

@@ -208,6 +208,10 @@ thread(void* arg)
 		status	=	evr_getPrescaler(private->device, private->parameter, (uint16_t*)&record->val);
 	else if (strcmp(private->command, "getPdpPrescaler") == 0)
 		status	=	evr_getPdpPrescaler(private->device, private->parameter, (uint16_t*)&record->val);
+	else if (strcmp(private->command, "getEvent") == 0)
+		status	=	evr_getEvent(private->device, private->parameter, (uint16_t*)&record->val);
+	else if (strcmp(private->command, "getClock") == 0)
+		status	=	evr_getEvent(private->device, private->parameter, (uint16_t*)&record->val);
 	else
 	{
 		printf("[evr][thread] Unable to io %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);

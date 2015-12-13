@@ -54,6 +54,7 @@ typedef struct
 	char			name[NAME_LENGTH];	/*Device name*/
 	in_addr_t		ip;					/*Device IP in network byte-order*/
 	in_port_t		port;				/*Device port in network byte-order*/
+	uint32_t		frequency;			/*Device event frequency in MHz*/
 	pthread_mutex_t	mutex;				/*Mutex for accessing the device*/
 	int32_t			socket;				/*Socket for communicating with the device*/
 } device_t;
@@ -140,7 +141,6 @@ init(void)
 {
 	int32_t				status;			
 	uint32_t			device;
-	uint32_t 			i;
 	struct sockaddr_in	address;
 
 	/*Initialize devices*/
@@ -180,87 +180,13 @@ init(void)
 		}
 
 		/*Initialize clock*/
-		status	=	evr_setClock(&devices[device], USEC_DIVIDER);
+		status	=	evr_setClock(&devices[device], devices[device].frequency);
 		if (status < 0)
 		{
 			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
 			return -1;
 		}
 
-		status	=	evr_setPolarity(&devices[device]);
-		if (status < 0)
-		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-			return -1;
-		}
-
-		/*Reset all pdps (disable, prescaler, delay, width)*/
-		for (i = 0; i < NUMBER_OF_PDP; i++)
-		{
-			status	=	evr_enablePdp(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPdpPrescaler(&devices[device], i, 1);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPdpDelay(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPdpWidth(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-		}
-		/*Reset all pulsers (disable, delay, width)*/
-		for (i = 0; i < NUMBER_OF_PULSERS; i++)
-		{
-			status	=	evr_enablePulser(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPulserDelay(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPulserWidth(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-		}
-
-		/*Multiplex prescalars on to front panel outputs*/
-		status	=	evr_muxFrontPanel(&devices[device]);
-		if (status < 0)
-		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-			return -1;
-		}
-
-		/*Set external event for debugging*/
-		status	=	evr_setExternalEvent(&devices[device], 0);
-		if (status < 0)
-		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-			return -1;
-		}
-		
 		/*Flush RAM*/
 		status	=	evr_flush(&devices[device]);
 		if (status < 0)
@@ -387,7 +313,7 @@ evr_flush(void* dev)
  * @return	0 on success, -1 on failure
  */
 long
-evr_setClock(void* dev, uint16_t divider)
+evr_setClock(void* dev, uint16_t frequency)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -396,7 +322,7 @@ evr_setClock(void* dev, uint16_t divider)
 	pthread_mutex_lock(&device->mutex);
 
 	/*Act*/
-	status	=	writecheck(device, REGISTER_USEC_DIVIDER, divider);
+	status	=	writecheck(device, REGISTER_USEC_DIVIDER, frequency);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] setClock is unsuccessful\n\x1B[0m");
@@ -410,146 +336,20 @@ evr_setClock(void* dev, uint16_t divider)
 	return 0;
 }
 
-/**
- * @brief	Enables/disables a level output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	level	:	The level output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	
-evr_enableLevel(void* dev, uint8_t level, bool enable)
+long
+evr_getClock(void* dev, uint16_t *frequency)
 {
-	uint16_t	data	=	0;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Get pulser status*/
-	status	=	readreg(device, REGISTER_LEVEL_ENABLE, &data);
+	/*Act*/
+	status	=	readreg(device, REGISTER_USEC_DIVIDER, frequency);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] enableLevel is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Prepare pulser status*/
-	if (enable)
-		data	|=	(1<<level);
-	else
-		data	&=	~(1<<level);
-
-	/*Update pulser status*/
-	status	=	writecheck(device, REGISTER_LEVEL_ENABLE, data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableLevel is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Unlock mutex*/
-	pthread_mutex_unlock(&device->mutex);
-
-	return 0;
-}
-
-/**
- * @brief	Enables/disables a trigger output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The trigger output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	
-evr_enableTrigger(void* dev, uint8_t trigger, bool enable)
-{
-	uint16_t	data	=	0;
-	int32_t		status;
-	device_t	*device	=	(device_t*)dev;
-
-	/*Lock mutex*/
-	pthread_mutex_lock(&device->mutex);
-
-	/*Get pulser status*/
-	status	=	readreg(device, REGISTER_TRIGGER_ENABLE, &data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableTrigger is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Prepare pulser status*/
-	if (enable)
-		data	|=	(1<<trigger);
-	else
-		data	&=	~(1<<trigger);
-
-	/*Update pulser status*/
-	status	=	writecheck(device, REGISTER_TRIGGER_ENABLE, data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableTrigger is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Unlock mutex*/
-	pthread_mutex_unlock(&device->mutex);
-
-	return 0;
-}
-
-/**
- * @brief	Enables/disables a DBUS output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The DBUS output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	
-evr_enableDbus(void* dev, uint8_t dbus, bool enable)
-{
-	uint16_t	data	=	0;
-	int32_t		status;
-	device_t	*device	=	(device_t*)dev;
-
-	/*Lock mutex*/
-	pthread_mutex_lock(&device->mutex);
-
-	/*Get pulser status*/
-	status	=	readreg(device, REGISTER_DBUS_ENABLE, &data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableDbus is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Prepare pulser status*/
-	if (enable)
-		data	|=	(1<<dbus);
-	else
-		data	&=	~(1<<dbus);
-
-	/*Update pulser status*/
-	status	=	writecheck(device, REGISTER_DBUS_ENABLE, data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableDbus is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][] setClock is unsuccessful\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1293,6 +1093,39 @@ evr_setEvent(void* dev, uint8_t event, uint16_t map)
 	return 0;
 }
 
+long
+evr_getEvent(void* dev, uint8_t event, uint16_t *map)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Select event*/
+	status	=	writecheck(device, REGISTER_MAP_ADDRESS, event);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setEvent is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read event actions*/
+	status	=	readreg(device, REGISTER_MAP_DATA, map);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setEvent is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
 /**
  * @brief	Sets selected prescalar
  *
@@ -1459,6 +1292,30 @@ evr_setExternalEvent(void* dev, uint8_t event)
 	if (data != event)
 	{
 		printf("\x1B[31m[evr][] setPrescaler is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long	
+evr_getExternalEvent(void* dev, uint8_t *event)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Write new event*/
+	status	=	readreg(device, REGISTER_EXTERNAL_EVENT, (uint16_t*)event);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setExternalEvent is unsuccessful\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1640,17 +1497,19 @@ report(int detail)
 /*
  * Configuration and registration functions and variables
  */
-static 	const 	iocshArg		configureArg0 	= 	{ "name", 	iocshArgString };
-static 	const 	iocshArg		configureArg1 	= 	{ "ip", 	iocshArgString };
-static 	const 	iocshArg		configureArg2 	= 	{ "port", 	iocshArgString };
+static 	const 	iocshArg		configureArg0 	= 	{ "name",		iocshArgString };
+static 	const 	iocshArg		configureArg1 	= 	{ "ip",			iocshArgString };
+static 	const 	iocshArg		configureArg2 	= 	{ "port",		iocshArgString };
+static 	const 	iocshArg		configureArg3 	= 	{ "frequency", 	iocshArgString };
 static 	const 	iocshArg*		configureArgs[] = 
 {
     &configureArg0,
     &configureArg1,
     &configureArg2,
+    &configureArg3,
 };
-static	const	iocshFuncDef	configureDef	=	{ "evrConfigure", 3, configureArgs };
-static 	long	configure(char *name, char *ip, char* port)
+static	const	iocshFuncDef	configureDef	=	{ "evrConfigure", 4, configureArgs };
+static 	long	configure(char *name, char *ip, char* port, char* frequency)
 {
 
 	struct sockaddr_in	address;
@@ -1675,10 +1534,16 @@ static 	long	configure(char *name, char *ip, char* port)
 		printf("\x1B[31m[evr][] Unable to configure device: Missing or incorrect port\r\n\x1B[0m");
 		return -1;
 	}
+	if (!frequency || !strlen(frequency) || !atoi(frequency))
+	{
+		printf("\x1B[31m[evr][] Unable to configure device: Missing or incorrect name\r\n\x1B[0m");
+		return -1;
+	}
 
 	strcpy(devices[deviceCount].name, 	name);
-	devices[deviceCount].ip		=	inet_addr(ip);
-	devices[deviceCount].port	=	htons(atoi(port));
+	devices[deviceCount].ip			=	inet_addr(ip);
+	devices[deviceCount].port		=	htons(atoi(port));
+	devices[deviceCount].frequency	=	atoi(frequency);
 
 	deviceCount++;
 
@@ -1687,7 +1552,7 @@ static 	long	configure(char *name, char *ip, char* port)
 
 static void configureFunc (const iocshArgBuf *args)
 {
-    configure(args[0].sval, args[1].sval, args[2].sval);
+    configure(args[0].sval, args[1].sval, args[2].sval, args[3].sval);
 }
 
 static void evrRegister(void)

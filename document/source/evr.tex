@@ -133,7 +133,6 @@ The driver should support the following Event Reciever (EVR) features:
 		\item Enable/disable pulser.
 		\item Program 16-bit pulser pulse width.
 		\item Program 32-bit pulser delay.
-		\item 
 	\end{itemize}
 
 	\subsection{Delayed Pulsers}
@@ -181,13 +180,22 @@ The driver should support the following Event Reciever (EVR) features:
 	\end{itemize}
 
 \section{Staged Delivery}
-	\subsection{Scope}
-	\subsection{Clock}
-	\subsection{External Event}
 	\subsection{Pulsers}
+	\begin{itemize}
+		\item Setup repository, EPICS, and IOC.
+		\item Initialize clock system and enable EVR.
+		\item Map events to actions.
+		\item Enable/disable pulser.
+		\item Control pulse width and delay of pulsers.
+	\end{itemize}
+
 	\subsection{Delayed Pulsers}
 	\subsection{Front Panel Mux}
 	\subsection{CML}
+	\subsection{External Event}
+	\subsection{Clock}
 	\subsection{Misc}
+	\subsection{Scope}
+	Monitor event receiver output on scope.
 
 \end{document}
