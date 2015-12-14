@@ -117,7 +117,6 @@ The driver should support the following Event Reciever (EVR) features:
 	\item Prescalers
 	\item Front panel mux
 	\item Frequency mode CML outputs
-	\item External event
 	\item Clock
 \end{itemize}
 
@@ -161,16 +160,10 @@ The driver should support the following Event Reciever (EVR) features:
 		\item Select CML output and program its prescaler
 	\end{itemize}
 
-	\subsection{External Event}
-	\begin{itemize}
-		\item Enable/disable external event.
-		\item Set external event.
-	\end{itemize}
-
 	\subsection{Clock}
 	\begin{itemize}
 		\item Program clock system to desired frequency.
-		\item Select clock source (external or internal).
+		\item Select internal source.
 	\end{itemize}
 
 	\subsection{Misc}
@@ -201,9 +194,13 @@ The driver should support the following Event Reciever (EVR) features:
 		\item Mlutiplex all sources to all front panel outputs.
 	\end{itemize}
 
-	\subsection{CML}
-	\subsection{External Event}
 	\subsection{Misc}
+	\begin{itemize}
+		\item Enable/disable card.
+		\item Read firmware version.
+	\end{itemize}
+
+	\subsection{CML}
 
 	\subsection{Scope}
 	Monitor event receiver output on scope.

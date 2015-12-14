@@ -44,6 +44,7 @@ typedef enum
 	REGISTER_PULSE_SELECT	=	0x1a,
 	REGISTER_DBUS_ENABLE	=	0x24,
 	REGISTER_PULSE_PRESCALAR=	0x28,
+	REGISTER_FIRMWARE		=	0x2e,
 	REGISTER_FP_TTL7		=	0x3e,
 	REGISTER_FP_TTL0		=	0x40,
 	REGISTER_FP_TTL1		=	0x42,
@@ -112,35 +113,36 @@ typedef enum
  * Low level functions
  */
 
-void*	evr_open			(char *name);
-long	evr_flush			(void* device);
-long	evr_setClock		(void* device, uint16_t frequency);
-long	evr_getClock		(void* device, uint16_t *frequency);
-long	evr_setExternalEvent(void* device, uint8_t event);
-long	evr_getExternalEvent(void* device, uint8_t *event);
-long	evr_setMap			(void* device, uint8_t event, uint16_t map);
-long	evr_getMap			(void* device, uint8_t event, uint16_t *map);
-long	evr_enable			(void* device, bool enable);
-long	evr_isEnabled		(void* device);
-long	evr_enablePulser	(void* device, uint8_t pulser, bool enable);
-long	evr_isPulserEnabled	(void* device, uint8_t pulser);
-long	evr_setPulserDelay	(void* device, uint8_t pulser, float delay);
-long	evr_getPulserDelay	(void* device, uint8_t pulser, double *delay);
-long	evr_setPulserWidth	(void* device, uint8_t pulser, float width);
-long	evr_getPulserWidth	(void* device, uint8_t pulser, double *width);
-long	evr_enablePdp		(void* device, uint8_t pdp, bool enable);
-long	evr_isPdpEnabled	(void* device, uint8_t pdp);
-long	evr_setPdpPrescaler	(void* device, uint8_t pdp, uint16_t prescaler);
-long	evr_getPdpPrescaler	(void* device, uint8_t pdp, uint16_t *prescaler);
-long	evr_setPdpDelay		(void* device, uint8_t pdp, float delay);
-long	evr_getPdpDelay		(void* device, uint8_t pdp, double *delay);
-long	evr_setPdpWidth		(void* device, uint8_t pdp, float width);
-long	evr_getPdpWidth		(void* device, uint8_t pdp, double *width);
-long	evr_setPrescaler	(void* device, uint8_t select, uint16_t prescaler);
-long	evr_getPrescaler	(void* device, uint8_t select, uint16_t *prescaler);
-long	evr_setTTLSource	(void* device, uint8_t ttl, uint8_t source);
-long	evr_getTTLSource	(void* device, uint8_t ttl, uint8_t *source);
-long	evr_setUNIVSource	(void* device, uint8_t univ, uint8_t source);
-long	evr_getUNIVSource	(void* device, uint8_t univ, uint8_t *source);
+void*	evr_open				(char *name);
+long	evr_flush				(void* device);
+long	evr_setClock			(void* device, uint16_t frequency);
+long	evr_getClock			(void* device, uint16_t *frequency);
+long	evr_setExternalEvent	(void* device, uint8_t event);
+long	evr_getExternalEvent	(void* device, uint8_t *event);
+long	evr_setMap				(void* device, uint8_t event, uint16_t map);
+long	evr_getMap				(void* device, uint8_t event, uint16_t *map);
+long	evr_enable				(void* device, bool enable);
+long	evr_isEnabled			(void* device);
+long	evr_enablePulser		(void* device, uint8_t pulser, bool enable);
+long	evr_isPulserEnabled		(void* device, uint8_t pulser);
+long	evr_setPulserDelay		(void* device, uint8_t pulser, float delay);
+long	evr_getPulserDelay		(void* device, uint8_t pulser, double *delay);
+long	evr_setPulserWidth		(void* device, uint8_t pulser, float width);
+long	evr_getPulserWidth		(void* device, uint8_t pulser, double *width);
+long	evr_enablePdp			(void* device, uint8_t pdp, bool enable);
+long	evr_isPdpEnabled		(void* device, uint8_t pdp);
+long	evr_setPdpPrescaler		(void* device, uint8_t pdp, uint16_t prescaler);
+long	evr_getPdpPrescaler		(void* device, uint8_t pdp, uint16_t *prescaler);
+long	evr_setPdpDelay			(void* device, uint8_t pdp, float delay);
+long	evr_getPdpDelay			(void* device, uint8_t pdp, double *delay);
+long	evr_setPdpWidth			(void* device, uint8_t pdp, float width);
+long	evr_getPdpWidth			(void* device, uint8_t pdp, double *width);
+long	evr_setPrescaler		(void* device, uint8_t select, uint16_t prescaler);
+long	evr_getPrescaler		(void* device, uint8_t select, uint16_t *prescaler);
+long	evr_setTTLSource		(void* device, uint8_t ttl, uint8_t source);
+long	evr_getTTLSource		(void* device, uint8_t ttl, uint8_t *source);
+long	evr_setUNIVSource		(void* device, uint8_t univ, uint8_t source);
+long	evr_getUNIVSource		(void* device, uint8_t univ, uint8_t *source);
+long	evr_getFirmwareVersion	(void* device, uint16_t *version);
 
 #endif /*__EVR_H__*/

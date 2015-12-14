@@ -1373,6 +1373,30 @@ evr_getExternalEvent(void* dev, uint8_t *event)
 	return 0;
 }
 
+long
+evr_getFirmwareVersion(void* dev, uint16_t *version)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Write new event*/
+	status	=	readreg(device, REGISTER_FIRMWARE, version);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setExternalEvent is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
 static long	
 writecheck(void *dev, evrregister_t reg, uint16_t data)
 {
