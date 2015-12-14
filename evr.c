@@ -1061,7 +1061,7 @@ evr_setPolarity(void* dev)
  * @return	0 on success, -1 on failure
  */
 long
-evr_setEvent(void* dev, uint8_t event, uint16_t map)
+evr_setMap(void* dev, uint8_t event, uint16_t map)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -1094,7 +1094,7 @@ evr_setEvent(void* dev, uint8_t event, uint16_t map)
 }
 
 long
-evr_getEvent(void* dev, uint8_t event, uint16_t *map)
+evr_getMap(void* dev, uint8_t event, uint16_t *map)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;

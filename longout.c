@@ -205,8 +205,8 @@ thread(void* arg)
 	/*Detach thread*/
 	pthread_detach(pthread_self());
 
-	if (strcmp(private->command, "setEvent") == 0)
-		status	=	evr_setEvent(private->device, record->val, private->parameter);
+	if (strcmp(private->command, "setMap") == 0)
+		status	=	evr_setMap(private->device, private->parameter, record->val);
 	else if (strcmp(private->command, "setExternalEvent") == 0)
 		status	=	evr_setExternalEvent(private->device, record->val);
 	else if (strcmp(private->command, "setPrescaler") == 0)
