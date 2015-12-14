@@ -1205,7 +1205,7 @@ evr_getPrescaler(void* dev, uint8_t select, uint16_t *prescaler)
  * @return	0 on success, -1 on failure
  */
 long
-evr_muxFrontPanel(void *dev)
+evr_setTTLSource(void *dev, uint8_t ttl, uint8_t source)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -1214,34 +1214,81 @@ evr_muxFrontPanel(void *dev)
 	pthread_mutex_lock(&device->mutex);
 
 	/*Route PDP to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP0, FP_MUX_PDP0);
+	status	=	writecheck(device, REGISTER_FP_TTL0 + (ttl*2), source);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long
+evr_getTTLSource(void *dev, uint8_t ttl, uint8_t *source)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+	uint16_t	readback;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Route source to destination*/
+	status	=	readreg(device, REGISTER_FP_TTL0 + (ttl*2), &readback);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	*source	=	readback;
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long
+evr_setUNIVSource(void *dev, uint8_t univ, uint8_t source)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Route source to destination*/
+	status	=	writecheck(device, REGISTER_FP_UNIV0 + (univ*2), source);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long
+evr_getUNIVSource(void *dev, uint8_t univ, uint8_t *source)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
 
 	/*Route PDP to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP1, FP_MUX_PDP1);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Route prescaler to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP2, FP_MUX_PDP2);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Route prescaler to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP3, FP_MUX_PDP3);
+	status	=	readreg(device, REGISTER_FP_UNIV0 + (univ*2), (uint16_t*)source);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");

@@ -44,14 +44,14 @@ typedef enum
 	REGISTER_PULSE_SELECT	=	0x1a,
 	REGISTER_DBUS_ENABLE	=	0x24,
 	REGISTER_PULSE_PRESCALAR=	0x28,
-	REGISTER_FP_MAP7		=	0x3e,
-	REGISTER_FP_MAP0		=	0x40,
-	REGISTER_FP_MAP1		=	0x42,
-	REGISTER_FP_MAP2		=	0x44,
-	REGISTER_FP_MAP3		=	0x46,
-	REGISTER_FP_MAP4		=	0x48,
-	REGISTER_FP_MAP5		=	0x4a,
-	REGISTER_FP_MAP6		=	0x4c,
+	REGISTER_FP_TTL7		=	0x3e,
+	REGISTER_FP_TTL0		=	0x40,
+	REGISTER_FP_TTL1		=	0x42,
+	REGISTER_FP_TTL2		=	0x44,
+	REGISTER_FP_TTL3		=	0x46,
+	REGISTER_FP_TTL4		=	0x48,
+	REGISTER_FP_TTL5		=	0x4a,
+	REGISTER_FP_TTL6		=	0x4c,
 	REGISTER_USEC_DIVIDER	=	0x4e,
 	REGISTER_EXTERNAL_EVENT	=	0x50,
 	REGISTER_CLOCK_CONTROL	=	0x52,
@@ -62,11 +62,11 @@ typedef enum
 	REGISTER_PRESCALAR_1	=	0x76,
 	REGISTER_PRESCALAR_2	=	0x78,
 	REGISTER_FRAC_DIVIDER	=	0x80,
-	REGISTER_FP_UNIV_MAP0	=	0x90,
-	REGISTER_FP_UNIV_MAP1	=	0x92,
-	REGISTER_FP_UNIV_MAP2	=	0x94,
-	REGISTER_FP_UNIV_MAP3	=	0x96,
-	REGISTER_FP_UNIV_GPIO	=	0x98,
+	REGISTER_FP_UNIV0		=	0x90,
+	REGISTER_FP_UNIV1		=	0x92,
+	REGISTER_FP_UNIV2		=	0x94,
+	REGISTER_FP_UNIV3		=	0x96,
+	REGISTER_FP_UNIVGPIO	=	0x98,
 } evrregister_t;
 
 /*Register bit definitions*/
@@ -81,6 +81,18 @@ typedef enum
 #define FP_MUX_PDP1			1
 #define FP_MUX_PDP2			2
 #define FP_MUX_PDP3			3
+#define FP_MUX_OTP0			11	
+#define FP_MUX_OTP1			12	
+#define FP_MUX_OTP2			13	
+#define FP_MUX_OTP3			14	
+#define FP_MUX_OTP4			15	
+#define FP_MUX_OTP5			16	
+#define FP_MUX_OTP6			17	
+#define FP_MUX_OTP7			18	
+#define FP_MUX_OTP8			19	
+#define FP_MUX_PRE0			40	
+#define FP_MUX_PRE1			41
+#define FP_MUX_PRE2			42	
 
 /*EVR UDP packet field defitions*/
 #define ACCESS_READ		(1)
@@ -126,6 +138,9 @@ long	evr_setPdpWidth		(void* device, uint8_t pdp, float width);
 long	evr_getPdpWidth		(void* device, uint8_t pdp, double *width);
 long	evr_setPrescaler	(void* device, uint8_t select, uint16_t prescaler);
 long	evr_getPrescaler	(void* device, uint8_t select, uint16_t *prescaler);
-long	evr_multiplex		(void* device, uint8_t output, uint8_t source);
+long	evr_setTTLSource	(void* device, uint8_t ttl, uint8_t source);
+long	evr_getTTLSource	(void* device, uint8_t ttl, uint8_t *source);
+long	evr_setUNIVSource	(void* device, uint8_t univ, uint8_t source);
+long	evr_getUNIVSource	(void* device, uint8_t univ, uint8_t *source);
 
 #endif /*__EVR_H__*/

@@ -12,6 +12,8 @@ evr_SRCS	+= 	ai.c
 evr_SRCS	+= 	ao.c
 evr_SRCS	+= 	longin.c
 evr_SRCS	+= 	longout.c
+evr_SRCS	+= 	mbbi.c
+evr_SRCS	+= 	mbbo.c
 evr_LIBS	+= 	$(EPICS_BASE_IOC_LIBS)
 
 include $(TOP)/configure/RULES
