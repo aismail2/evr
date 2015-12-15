@@ -819,7 +819,6 @@ evr_getPdpPrescaler(void* dev, uint8_t pdp, uint16_t *prescaler)
 	return 0;
 }
 
-
 long	
 evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 {
@@ -972,7 +971,8 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 long	
 evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 {
-	uint16_t	cycles;
+	uint16_t	data	=	0;
+	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
@@ -997,16 +997,157 @@ evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 	}
 
 	/*Read width*/
-	status	=	readreg(device, REGISTER_PULSE_WIDTH+2, &cycles);
+	status	=	readreg(device, REGISTER_PULSE_WIDTH, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to read delay.\n\x1B[0m");
+		printf("\x1B[31m[evr][] Unable to read width.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	cycles	=	data;
+	cycles	<<=	16;
+
+	status	=	readreg(device, REGISTER_PULSE_WIDTH+2, &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] Unable to read width.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	cycles	|=	data;
+
+	/*Convert pulser width*/
+	*width	=	cycles/(double)USEC_DIVIDER;	
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long	
+evr_enableCml(void* dev, uint8_t cml, bool enable)
+{
+	uint16_t	data	=	0;
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	if (enable)
+		data	=	CML_FREQUENCY_MODE + CML_ENABLE;
+	else
+		data	=	CML_FREQUENCY_MODE;
+
+	/*Update pulser status*/
+	status	=	writecheck(device, REGISTER_CML4_ENABLE + (cml*0x20), data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] enableCml is unsuccessful\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
-	/*Convert pulser delay*/
-	*width	=	cycles/(double)USEC_DIVIDER;	
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long	
+evr_isCmlEnabled(void* dev, uint8_t cml)
+{
+	uint16_t	data	=	0;
+	int32_t		status;
+	device_t*	device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Get cml status*/
+	status	=	readreg(device, REGISTER_CML4_ENABLE + (cml*0x20), &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] isCmlEnabled is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return (data&CML_ENABLE);
+}
+
+long	
+evr_setCmlPrescaler(void* dev, uint8_t cml, uint32_t prescaler)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Write new width*/
+	status	=	writecheck(device, REGISTER_CML4_HP + (cml*0x20), prescaler>>16);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setCmlPrescaler is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	status	=	writecheck(device, REGISTER_CML4_LP + (cml*0x20), prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setCmlPrescaler is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long	
+evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
+{
+	uint16_t	data	=	0;
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check input*/
+	if (!dev || !prescaler)
+	{
+		printf("\x1B[31m[evr][] Null pointer.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_CML4_HP, &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] Unable to read prescaler.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	*prescaler	=	data;
+	*prescaler	<<=	16;
+
+	status	=	readreg(device, REGISTER_CML4_LP, &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] Unable to read prescaler.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	*prescaler	|=	data;
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);

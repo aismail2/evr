@@ -68,6 +68,15 @@ typedef enum
 	REGISTER_FP_UNIV2		=	0x94,
 	REGISTER_FP_UNIV3		=	0x96,
 	REGISTER_FP_UNIVGPIO	=	0x98,
+	REGISTER_CML4_ENABLE	=	0xb0,
+	REGISTER_CML4_HP		=	0xb4,
+	REGISTER_CML4_LP		=	0xb6,
+	REGISTER_CML5_ENABLE	=	0xd0,
+	REGISTER_CML5_HP		=	0xd4,
+	REGISTER_CML5_LP		=	0xd6,
+	REGISTER_CML6_ENABLE	=	0xf0,
+	REGISTER_CML6_HP		=	0xf4,
+	REGISTER_CML6_LP		=	0xf6,
 } evrregister_t;
 
 /*Register bit definitions*/
@@ -94,6 +103,8 @@ typedef enum
 #define FP_MUX_PRE0			40	
 #define FP_MUX_PRE1			41
 #define FP_MUX_PRE2			42	
+#define CML_FREQUENCY_MODE	0x0010
+#define CML_ENABLE			0x0001
 
 /*EVR UDP packet field defitions*/
 #define ACCESS_READ		(1)
@@ -144,5 +155,9 @@ long	evr_getTTLSource		(void* device, uint8_t ttl, uint8_t *source);
 long	evr_setUNIVSource		(void* device, uint8_t univ, uint8_t source);
 long	evr_getUNIVSource		(void* device, uint8_t univ, uint8_t *source);
 long	evr_getFirmwareVersion	(void* device, uint16_t *version);
+long	evr_enableCml			(void* device, uint8_t cml, bool enable);
+long	evr_isCmlEnabled		(void* device, uint8_t cml);
+long	evr_setCmlPrescaler		(void* device, uint8_t cml, uint32_t prescaler);
+long	evr_getCmlPrescaler		(void* device, uint8_t cml, uint32_t *prescaler);
 
 #endif /*__EVR_H__*/
