@@ -1090,14 +1090,14 @@ evr_setCmlPrescaler(void* dev, uint8_t cml, uint32_t prescaler)
 	pthread_mutex_lock(&device->mutex);
 
 	/*Write new width*/
-	status	=	writecheck(device, REGISTER_CML4_HP + (cml*0x20), prescaler>>16);
+	status	=	writecheck(device, REGISTER_CML4_HP + (cml*0x20), prescaler/2);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] setCmlPrescaler is unsuccessful\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
-	status	=	writecheck(device, REGISTER_CML4_LP + (cml*0x20), prescaler);
+	status	=	writecheck(device, REGISTER_CML4_LP + (cml*0x20), prescaler - (prescaler/2));
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] setCmlPrescaler is unsuccessful\n\x1B[0m");
@@ -1138,7 +1138,6 @@ evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
 		return -1;
 	}
 	*prescaler	=	data;
-	*prescaler	<<=	16;
 
 	status	=	readreg(device, REGISTER_CML4_LP + (cml*0x20), &data);
 	if (status < 0)
@@ -1147,7 +1146,7 @@ evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
-	*prescaler	|=	data;
+	*prescaler	+=	data;
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
