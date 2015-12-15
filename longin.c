@@ -208,6 +208,8 @@ thread(void* arg)
 		status	=	evr_getPrescaler(private->device, private->parameter, (uint16_t*)&record->val);
 	else if (strcmp(private->command, "getPdpPrescaler") == 0)
 		status	=	evr_getPdpPrescaler(private->device, private->parameter, (uint16_t*)&record->val);
+	else if (strcmp(private->command, "getCmlPrescaler") == 0)
+		status	=	evr_getCmlPrescaler(private->device, private->parameter, (uint32_t*)&record->val);
 	else if (strcmp(private->command, "getMap") == 0)
 		status	=	evr_getMap(private->device, private->parameter, (uint16_t*)&record->val);
 	else if (strcmp(private->command, "getClock") == 0)

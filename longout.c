@@ -213,6 +213,8 @@ thread(void* arg)
 		status	=	evr_setPrescaler(private->device, private->parameter, record->val);
 	else if (strcmp(private->command, "setPdpPrescaler") == 0)
 		status	=	evr_setPdpPrescaler(private->device, private->parameter, record->val);
+	else if (strcmp(private->command, "setCmlPrescaler") == 0)
+		status	=	evr_setCmlPrescaler(private->device, private->parameter, record->val);
 	else
 	{
 		printf("[evr][thread] Unable to io %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);
