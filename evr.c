@@ -1130,7 +1130,7 @@ evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
 	}
 
 	/*Read prescaler*/
-	status	=	readreg(device, REGISTER_CML4_HP, &data);
+	status	=	readreg(device, REGISTER_CML4_HP + (cml*0x20), &data);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] Unable to read prescaler.\n\x1B[0m");
@@ -1140,7 +1140,7 @@ evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
 	*prescaler	=	data;
 	*prescaler	<<=	16;
 
-	status	=	readreg(device, REGISTER_CML4_LP, &data);
+	status	=	readreg(device, REGISTER_CML4_LP + (cml*0x20), &data);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] Unable to read prescaler.\n\x1B[0m");
