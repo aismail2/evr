@@ -207,8 +207,6 @@ thread(void* arg)
 
 	if (strcmp(private->command, "setMap") == 0)
 		status	=	evr_setMap(private->device, private->parameter, record->val);
-	else if (strcmp(private->command, "setExternalEvent") == 0)
-		status	=	evr_setExternalEvent(private->device, record->val);
 	else if (strcmp(private->command, "setPrescaler") == 0)
 		status	=	evr_setPrescaler(private->device, private->parameter, record->val);
 	else if (strcmp(private->command, "setPdpPrescaler") == 0)

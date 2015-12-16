@@ -84,8 +84,6 @@ typedef enum
 #define CONTROL_MAP_ENABLE	0x0200
 #define CONTROL_FLUSH		0x0080
 #define PULSE_ENABLE_ALL	0x03FF
-#define EVENT_FREQUENCY		(125000000)
-#define USEC_DIVIDER		(EVENT_FREQUENCY/1000000)
 #define PULSE_SELECT_OFFSET	16
 #define FP_MUX_PDP0			0
 #define FP_MUX_PDP1			1
@@ -118,7 +116,14 @@ typedef enum
 /*Number of outputs per device*/
 #define NUMBER_OF_PDP			4
 #define NUMBER_OF_PULSERS		14
-#define NUMBER_OF_PRESCALARS	3
+#define NUMBER_OF_PRESCALERS	3
+#define NUMBER_OF_CML			3
+#define NUMBER_OF_TTL			8
+#define NUMBER_OF_UNIV			4
+#define NUMBER_OF_SOURCES		64
+
+/*Max event frequency*/
+#define MAX_EVENT_FREQUENCY		125
 
 /*
  * Low level functions
@@ -128,8 +133,6 @@ void*	evr_open				(char *name);
 long	evr_flush				(void* device);
 long	evr_setClock			(void* device, uint16_t frequency);
 long	evr_getClock			(void* device, uint16_t *frequency);
-long	evr_setExternalEvent	(void* device, uint8_t event);
-long	evr_getExternalEvent	(void* device, uint8_t *event);
 long	evr_setMap				(void* device, uint8_t event, uint16_t map);
 long	evr_getMap				(void* device, uint8_t event, uint16_t *map);
 long	evr_enable				(void* device, bool enable);
