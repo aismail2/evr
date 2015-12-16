@@ -458,7 +458,7 @@ evr_setPulserDelay(void* dev, uint8_t pulser, float delay)
 	pthread_mutex_lock(&device->mutex);
 
 	/*Check delay*/
-	if (delay < 0 || delay > (UINT_MAX/USEC_DIVIDER))
+	if (delay < 0 || delay > (UINT_MAX/device->frequency))
 	{
 		printf("\x1B[31m[evr][] setPulserDelay is unsuccessful: delay is too long\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
@@ -466,7 +466,7 @@ evr_setPulserDelay(void* dev, uint8_t pulser, float delay)
 	}
 
 	/*Convert pulser delay*/
-	cycles	=	delay*USEC_DIVIDER;	
+	cycles	=	delay*device->frequency;	
 
 	/*Select pulser*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT,	pulser + PULSE_SELECT_OFFSET);
@@ -558,7 +558,7 @@ evr_getPulserDelay(void* dev, uint8_t pulser, double *delay)
 	cycles	|=	data;
 
 	/*Convert pulser delay*/
-	*delay	=	cycles/(double)USEC_DIVIDER;	
+	*delay	=	cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -589,7 +589,7 @@ evr_setPulserWidth(void* dev, uint8_t pulser, float width)
 	pthread_mutex_lock(&device->mutex);
 
 	/*Check width*/
-	if (width < 0 || width > (USHRT_MAX/USEC_DIVIDER))
+	if (width < 0 || width > (USHRT_MAX/device->frequency))
 	{
 		printf("\x1B[31m[evr][] setPulserWidth is unsuccessful: width is too long\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
@@ -597,7 +597,7 @@ evr_setPulserWidth(void* dev, uint8_t pulser, float width)
 	}
 
 	/*Convert pulser delay*/
-	cycles	=	width*USEC_DIVIDER;	
+	cycles	=	width*device->frequency;	
 
 	/*Select pulser*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT,	pulser + PULSE_SELECT_OFFSET);
@@ -670,7 +670,7 @@ evr_getPulserWidth(void* dev, uint8_t pulser, double *width)
 	}
 
 	/*Convert pulser delay*/
-	*width	=	cycles/(double)USEC_DIVIDER;	
+	*width	=	cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -832,7 +832,7 @@ evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 	/*Check delay*/
 
 	/*Convert pdp delay*/
-	cycles	=	delay*USEC_DIVIDER;	
+	cycles	=	delay*device->frequency;	
 
 	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
@@ -914,7 +914,7 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 	cycles	|=	data;
 
 	/*Convert pulser delay*/
-	*delay	=	cycles/(double)USEC_DIVIDER;	
+	*delay	=	cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -935,7 +935,7 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 	/*Check width*/
 
 	/*Convert pdp delay*/
-	cycles	=	width*USEC_DIVIDER;	
+	cycles	=	width*device->frequency;	
 
 	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
@@ -1017,7 +1017,7 @@ evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 	cycles	|=	data;
 
 	/*Convert pulser width*/
-	*width	=	cycles/(double)USEC_DIVIDER;	
+	*width	=	cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
