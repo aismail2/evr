@@ -822,6 +822,7 @@ evr_getPdpPrescaler(void* dev, uint8_t pdp, uint16_t *prescaler)
 long	
 evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 {
+	uint16_t	prescaler;	
 	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -831,9 +832,6 @@ evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 
 	/*Check delay*/
 
-	/*Convert pdp delay*/
-	cycles	=	delay*device->frequency;	
-
 	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
@@ -842,6 +840,18 @@ evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Convert pdp delay*/
+	cycles	=	delay*device->frequency/prescaler;	
 
 	/*Write new delay*/
 	status	=	writecheck(device, REGISTER_PULSE_DELAY, cycles>>16);
@@ -868,7 +878,8 @@ evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 long	
 evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 {
-	uint16_t	data	=	0;
+	uint16_t	prescaler;
+	uint16_t	data;
 	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -884,11 +895,20 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 		return -1;
 	}
 
-	/*Select pulser*/
+	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] Unable to select pulser.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -913,8 +933,8 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 	}
 	cycles	|=	data;
 
-	/*Convert pulser delay*/
-	*delay	=	cycles/(double)device->frequency;	
+	/*Convert delay*/
+	*delay	=	prescaler*cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -925,6 +945,7 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 long	
 evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 {
+	uint16_t	prescaler;
 	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -934,9 +955,6 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 
 	/*Check width*/
 
-	/*Convert pdp delay*/
-	cycles	=	width*device->frequency;	
-
 	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
@@ -945,6 +963,18 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Convert pdp delay*/
+	cycles	=	width*device->frequency/prescaler;	
 
 	/*Write new width*/
 	status	=	writecheck(device, REGISTER_PULSE_WIDTH, cycles>>16);
@@ -971,7 +1001,8 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 long	
 evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 {
-	uint16_t	data	=	0;
+	uint16_t	prescaler;
+	uint16_t	data;
 	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -987,11 +1018,20 @@ evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 		return -1;
 	}
 
-	/*Select pulser*/
+	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
 	{
 		printf("\x1B[31m[evr][] Unable to select pulser.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1017,7 +1057,7 @@ evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 	cycles	|=	data;
 
 	/*Convert pulser width*/
-	*width	=	cycles/(double)device->frequency;	
+	*width	=	prescaler*cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -1040,7 +1080,7 @@ evr_enableCml(void* dev, uint8_t cml, bool enable)
 	else
 		data	=	CML_FREQUENCY_MODE;
 
-	/*Update pulser status*/
+	/*Update cml status*/
 	status	=	writecheck(device, REGISTER_CML4_ENABLE + (cml*0x20), data);
 	if (status < 0)
 	{
@@ -1147,43 +1187,6 @@ evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
 		return -1;
 	}
 	*prescaler	+=	data;
-
-	/*Unlock mutex*/
-	pthread_mutex_unlock(&device->mutex);
-
-	return 0;
-}
-
-/**
- * @brief	Resets polarity for all outputs
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @return	0 on success, -1 on failure
- */
-long
-evr_setPolarity(void* dev)
-{
-	int32_t		status;
-	device_t	*device	=	(device_t*)dev;
-
-	/*Lock mutex*/
-	pthread_mutex_lock(&device->mutex);
-
-	/*Act*/
-	status	=	writecheck(device, REGISTER_PULSE_POLARITY, 0);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] setPolarity is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-	status	=	writecheck(device, REGISTER_PULSE_POLARITY+2, 0);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] setPolarity is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
