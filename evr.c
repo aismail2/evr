@@ -128,10 +128,6 @@ evr_open(char *name)
  *	Create and bind UDP socket
  *	Disable the device
  *	Initialize the clock
- *	Disable all outputs and reset their polarity
- *	Reset all pulser delays and widths
- *	Multiplexe prescalars 0, 1, and 2 on to front panel universal outputs 0, 1, and 2
- *	Reset external event
  * 	Flush event RAM
  *
  * @return	0 on success, -1 on failure
@@ -329,7 +325,7 @@ evr_flush(void* dev)
 }
 
 /**
- * @brief	Sets the clock divisor
+ * @brief	Sets the frequency in MHz
  *
  * Divisor = event-frequency/1MHz. For example, at an event frequency of 125MHz, divisor = 125
  *
@@ -374,6 +370,15 @@ evr_setClock(void* dev, uint16_t frequency)
 	return 0;
 }
 
+/**
+ * @brief	Returns the set frequency in MHz
+ *
+ * Divisor = event-frequency/1MHz. For example, at an event frequency of 125MHz, divisor = 125
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	*frequency	:	The returned frequency in MHz
+ * @return	0 on success, -1 on failure
+ */
 long
 evr_getClock(void* dev, uint16_t *frequency)
 {
@@ -418,7 +423,7 @@ evr_getClock(void* dev, uint16_t *frequency)
  * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
  *
  * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The pulser output being acted upon
+ * @param	pulser	:	The pulser output being acted upon
  * @param	enable	:	Enables the output if true, disables it if false
  * @return	0 on success, -1 on failure
  */
@@ -476,6 +481,13 @@ evr_enablePulser(void* dev, uint8_t pulser, bool enable)
 	return 0;
 }
 
+/**
+ * @brief	Checks if pulser is enabled
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pulser	:	The pulser output being acted upon
+ * @return	1 if true, 0 if false, -1 on failure
+ */
 long	
 evr_isPulserEnabled	(void* dev, uint8_t pulser)
 {
@@ -811,7 +823,7 @@ evr_getPulserWidth(void* dev, uint8_t pulser, double *width)
  * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
  *
  * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The PDP output being acted upon
+ * @param	pdp		:	The PDP output being acted upon
  * @param	enable	:	Enables the output if true, disables it if false
  * @return	0 on success, -1 on failure
  */
@@ -869,6 +881,13 @@ evr_enablePdp(void* dev, uint8_t pdp, bool enable)
 	return 0;
 }
 
+/**
+ * @brief	Checks if pdp is enabled.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The PDP output being acted upon
+ * @return	1 if true, 0 if false, -1 on failure
+ */
 long	
 evr_isPdpEnabled(void* dev, uint8_t pdp)
 {
@@ -908,6 +927,14 @@ evr_isPdpEnabled(void* dev, uint8_t pdp)
 	return (data&(1<<pdp));
 }
 
+/**
+ * @brief	Sets pdp prescaler
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	pdp			:	The pdp being acted upon
+ * @param	prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_setPdpPrescaler(void* dev, uint8_t pdp, uint16_t prescaler)
 {
@@ -955,6 +982,14 @@ evr_setPdpPrescaler(void* dev, uint8_t pdp, uint16_t prescaler)
 	return 0;
 }
 
+/**
+ * @brief	Reads pdp prescaler
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	pdp			:	The pdp being acted upon
+ * @param	*prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPdpPrescaler(void* dev, uint8_t pdp, uint16_t *prescaler)
 {
@@ -1008,6 +1043,19 @@ evr_getPdpPrescaler(void* dev, uint8_t pdp, uint16_t *prescaler)
 	return 0;
 }
 
+/**
+ * @brief	Sets pdp delay
+ *
+ * Converts pdp delay from microseconds to clock cycles then writes the value to the delay register of the pdp.
+ * Takes the pdp prescaler into account when calculating the cycles.
+ * Maximum delay in microseconds = max_prescaler*2^32/event_frequency in MHz.
+ * For example, @F = 125MHz, prescaler = 1, Maximum delay = 34.4s (34.4e6 microseconds)
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	delay	:	The delay, in microseconds, of the pdp specified in the second argument
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 {
@@ -1082,6 +1130,17 @@ evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 	return 0;
 }
 
+/**
+ * @brief	Gets pdp delay
+ *
+ * Reads pdp delay and converts it from clock cycles to microseconds.
+ * Takes the pdp prescaler into account when calculating the cycles.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	*delay	:	The delay, in microseconds, of the pdp
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 {
@@ -1161,6 +1220,19 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 	return 0;
 }
 
+/**
+ * @brief	Sets pdp width
+ *
+ * Converts pdp width from microseconds to clock cycles then writes the value to the width register of the pdp.
+ * Takes the pdp prescaler into account when calculating the cycles.
+ * Maximum width in microseconds = maximum_prescaler*2^32/event_frequency in MHz.
+ * For example, @F = 125MHz, prescaler = 1, Maximum width ~  34 seconds.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	width	:	The width, in microseconds, of the pdp specified in the second argument
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 {
@@ -1235,6 +1307,16 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 	return 0;
 }
 
+/**
+ * @brief	Reads pdp width
+ *
+ * Takes the pdp prescaler into account when calculating the cycles.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	width	:	The width, in microseconds, of the pdp specified in the second argument
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 {
@@ -1314,6 +1396,14 @@ evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 	return 0;
 }
 
+/**
+ * @brief	Enables/disables a CML output
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	cml		:	The cml output being acted upon
+ * @param	enable	:	Enables the output if true, disables it if false
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_enableCml(void* dev, uint8_t cml, bool enable)
 {
@@ -1358,6 +1448,13 @@ evr_enableCml(void* dev, uint8_t cml, bool enable)
 	return 0;
 }
 
+/**
+ * @brief	Checks if cml is enabled.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	cml		:	The cml output being acted upon
+ * @return	1 if true, 0 if false, -1 on failure
+ */
 long	
 evr_isCmlEnabled(void* dev, uint8_t cml)
 {
@@ -1397,6 +1494,14 @@ evr_isCmlEnabled(void* dev, uint8_t cml)
 	return (data&CML_ENABLE);
 }
 
+/**
+ * @brief	Sets cml prescaler
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	cml			:	The cml being acted upon
+ * @param	prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_setCmlPrescaler(void* dev, uint8_t cml, uint32_t prescaler)
 {
@@ -1442,6 +1547,14 @@ evr_setCmlPrescaler(void* dev, uint8_t cml, uint32_t prescaler)
 	return 0;
 }
 
+/**
+ * @brief	Reads cml prescaler
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	cml			:	The cml being acted upon
+ * @param	*prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
 {
@@ -1498,12 +1611,11 @@ evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
 }
 
 /**
- * @brief	Flushes RAM, adds a new event, and sets all of its outputs
- *
- * Gaurantees that a single event is present in RAM by first flushing RAM and then writing the new event.
+ * @brief	Maps an event to actions.
  *
  * @param	*dev	:	A pointer to the device being acted upon
  * @param	event	:	New event to be added
+ * @param	map		:	The actions to be taken upon receiving the event
  * @return	0 on success, -1 on failure
  */
 long
@@ -1547,6 +1659,14 @@ evr_setMap(void* dev, uint8_t event, uint16_t map)
 	return 0;
 }
 
+/**
+ * @brief	Reads the actions that correspond to an event
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	event	:	The event
+ * @param	*map	:	The actions of the event
+ * @return	0 on success, -1 on failure
+ */
 long
 evr_getMap(void* dev, uint8_t event, uint16_t *map)
 {
@@ -1634,6 +1754,14 @@ evr_setPrescaler(void* dev, uint8_t select, uint16_t prescaler)
 	return 0;
 }
 
+/**
+ * @brief	Reads selected prescalar
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	select		:	Prescalar to be set (0, 1, or 2)
+ * @param	*prescalar	:	Value of prescalar
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPrescaler(void* dev, uint8_t select, uint16_t *prescaler)
 {
@@ -1673,9 +1801,11 @@ evr_getPrescaler(void* dev, uint8_t select, uint16_t *prescaler)
 }
 
 /**
- * @brief	Routes prescaler outputs 0, 1, and 2 to universal outputs 0, 1, and 2 on the front panel
+ * @brief	Routes source to TTL output
  *
  * @param	*dev	:	A pointer to the device being acted upon
+ * @param	ttl		:	TTL output
+ * @param	source	:	The source
  * @return	0 on success, -1 on failure
  */
 long
@@ -1722,6 +1852,14 @@ evr_setTTLSource(void *dev, uint8_t ttl, uint8_t source)
 	return 0;
 }
 
+/**
+ * @brief	Reads the source of a TTL output
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	ttl		:	TTL output
+ * @param	*source	:	The source
+ * @return	0 on success, -1 on failure
+ */
 long
 evr_getTTLSource(void *dev, uint8_t ttl, uint8_t *source)
 {
@@ -1768,6 +1906,14 @@ evr_getTTLSource(void *dev, uint8_t ttl, uint8_t *source)
 	return 0;
 }
 
+/**
+ * @brief	Routes source to UNIV output
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	univ	:	UNIV output
+ * @param	source	:	The source
+ * @return	0 on success, -1 on failure
+ */
 long
 evr_setUNIVSource(void *dev, uint8_t univ, uint8_t source)
 {
@@ -1812,6 +1958,14 @@ evr_setUNIVSource(void *dev, uint8_t univ, uint8_t source)
 	return 0;
 }
 
+/**
+ * @brief	Reads the source of a UNIV output
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	univ	:	UNIV output
+ * @param	*source	:	The source
+ * @return	0 on success, -1 on failure
+ */
 long
 evr_getUNIVSource(void *dev, uint8_t univ, uint8_t *source)
 {
@@ -1856,6 +2010,12 @@ evr_getUNIVSource(void *dev, uint8_t univ, uint8_t *source)
 	return 0;
 }
 
+/**
+ * @brief	Reads firmware version.
+ *
+ * @param *dev		:	A pointer to the device being acted upon
+ * @param *version	:	The firmware version
+ */
 long
 evr_getFirmwareVersion(void* dev, uint16_t *version)
 {
@@ -1865,11 +2025,19 @@ evr_getFirmwareVersion(void* dev, uint16_t *version)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
+	/*Check inputs*/
+	if (!dev || !version)
+	{
+		printf("\x1B[31m[evr][getFirmwareVersion] Null pointer.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
 	/*Write new event*/
 	status	=	readreg(device, REGISTER_FIRMWARE, version);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setExternalEvent is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][getFirmwareVersion] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1880,12 +2048,27 @@ evr_getFirmwareVersion(void* dev, uint16_t *version)
 	return 0;
 }
 
+/**
+ * @brief	Writes device's 16-bit register and checks the register was written
+ *
+ * Prepares UDP message, sends it to device
+ * Reads back the value in the register and validates the write
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	reg		:	Address of register to be written
+ * @param	data	:	16-bit data to be written to device
+ * @return	0 on success, -1 on failure
+ */
 static long	
 writecheck(void *dev, evrregister_t reg, uint16_t data)
 {
 	uint16_t	readback;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
+
+	/*Check inputs*/
+	if (!dev)
+		return -1;
 
 	/*Write data*/
 	status	=	writereg(device, reg, data);
@@ -1923,6 +2106,10 @@ readreg(void *dev, evrregister_t reg, uint16_t *data)
 	device_t		*device	=	(device_t*)dev;
 	struct pollfd	events[1];
 
+	/*Check inputs*/
+	if (!dev || !data)
+		return -1;
+
 	/*Prepare message*/
 	message.access		=	ACCESS_READ;
 	message.status		=	0;
@@ -1954,10 +2141,7 @@ readreg(void *dev, evrregister_t reg, uint16_t *data)
 	}
 
 	if (retries >= NUMBER_OF_RETRIES)
-	{
-		printf("\x1B[31m[evr][] Read is unsuccessful\n\x1B[0m");
 		return -1;
-	}
 
 	/*Extract data*/
 	*data	=	ntohs(message.data);
@@ -1984,6 +2168,9 @@ writereg(void *dev, evrregister_t reg, uint16_t data)
 	message_t		message;
 	device_t		*device	=	(device_t*)dev;
 	struct pollfd	events[1];
+
+	if (!dev)
+		return -1;
 
 	/*Prepare message*/
 	message.access		=	ACCESS_WRITE;
@@ -2017,10 +2204,7 @@ writereg(void *dev, evrregister_t reg, uint16_t data)
 	}
 
 	if (retries >= NUMBER_OF_RETRIES)
-	{
-		printf("\x1B[31m[evr][] Write is unsuccessful\n\x1B[0m");
 		return -1;
-	}
 
 	return 0;
 }
