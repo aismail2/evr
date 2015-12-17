@@ -74,7 +74,7 @@ parse(io_t *io, char *parameters)
 
 		/*Process key-value pair*/
 		if (strcmp(key, "parameter") == 0)
-			io->parameter	=	atoi(value);
+			io->parameter	=	strtol(value, NULL, 0);
 		else
 		{
 			printf("[evr][parse] Unable to parse: Key is not recognized.\n");

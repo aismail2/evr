@@ -54,6 +54,7 @@ typedef struct
 	char			name[NAME_LENGTH];	/*Device name*/
 	in_addr_t		ip;					/*Device IP in network byte-order*/
 	in_port_t		port;				/*Device port in network byte-order*/
+	uint32_t		frequency;			/*Device event frequency in MHz*/
 	pthread_mutex_t	mutex;				/*Mutex for accessing the device*/
 	int32_t			socket;				/*Socket for communicating with the device*/
 } device_t;
@@ -127,10 +128,6 @@ evr_open(char *name)
  *	Create and bind UDP socket
  *	Disable the device
  *	Initialize the clock
- *	Disable all outputs and reset their polarity
- *	Reset all pulser delays and widths
- *	Multiplexe prescalars 0, 1, and 2 on to front panel universal outputs 0, 1, and 2
- *	Reset external event
  * 	Flush event RAM
  *
  * @return	0 on success, -1 on failure
@@ -140,7 +137,6 @@ init(void)
 {
 	int32_t				status;			
 	uint32_t			device;
-	uint32_t 			i;
 	struct sockaddr_in	address;
 
 	/*Initialize devices*/
@@ -153,7 +149,7 @@ init(void)
 		devices[device].socket 	=	socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		if (devices[device].socket < 0)
 		{
-			printf("\x1B[31m[evr][] Unable to create socket\n\x1B[0m");
+			printf("\x1B[31m[evr][init] Unable to create socket\n\x1B[0m");
 			return -1;
 		}
 		memset((uint8_t *)&address, 0, sizeof(address));
@@ -163,7 +159,7 @@ init(void)
 		status	=	connect(devices[device].socket, (struct sockaddr*)&address, sizeof(address));
 		if (status	<	0)
 		{
-			printf("\x1B[31m[evr][] Unable to connect to device\n\x1B[0m");
+			printf("\x1B[31m[evr][init] Unable to connect to device\n\x1B[0m");
 			return -1;
 		}
 
@@ -175,97 +171,23 @@ init(void)
 		status	=	evr_enable(&devices[device], 0);
 		if (status < 0)
 		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
+			printf("\x1B[31m[evr][init] Unable to enable device\n\x1B[0m");
 			return -1;
 		}
 
 		/*Initialize clock*/
-		status	=	evr_setClock(&devices[device], USEC_DIVIDER);
+		status	=	evr_setClock(&devices[device], devices[device].frequency);
 		if (status < 0)
 		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
+			printf("\x1B[31m[evr][init] Unable to set clock\n\x1B[0m");
 			return -1;
 		}
 
-		status	=	evr_setPolarity(&devices[device]);
-		if (status < 0)
-		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-			return -1;
-		}
-
-		/*Reset all pdps (disable, prescaler, delay, width)*/
-		for (i = 0; i < NUMBER_OF_PDP; i++)
-		{
-			status	=	evr_enablePdp(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPdpPrescaler(&devices[device], i, 1);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPdpDelay(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPdpWidth(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-		}
-		/*Reset all pulsers (disable, delay, width)*/
-		for (i = 0; i < NUMBER_OF_PULSERS; i++)
-		{
-			status	=	evr_enablePulser(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPulserDelay(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-			status	=	evr_setPulserWidth(&devices[device], i, 0);
-			if (status < 0)
-			{
-				printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-				return -1;
-			}
-		}
-
-		/*Multiplex prescalars on to front panel outputs*/
-		status	=	evr_muxFrontPanel(&devices[device]);
-		if (status < 0)
-		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-			return -1;
-		}
-
-		/*Set external event for debugging*/
-		status	=	evr_setExternalEvent(&devices[device], 0);
-		if (status < 0)
-		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
-			return -1;
-		}
-		
 		/*Flush RAM*/
 		status	=	evr_flush(&devices[device]);
 		if (status < 0)
 		{
-			printf("\x1B[31m[evr][] Unable to initialize device\n\x1B[0m");
+			printf("\x1B[31m[evr][init] Unable to flush ram\n\x1B[0m");
 			return -1;
 		}
 	}
@@ -289,13 +211,21 @@ evr_enable(void* dev, bool enable)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][enable] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
 	/*Act*/
 	if (enable)
 	{
 		status	=	writereg(device, REGISTER_CONTROL, CONTROL_EVR_ENABLE | CONTROL_MAP_ENABLE);
 		if (status < 0)
 		{
-			printf("\x1B[31m[evr][] enable is unsuccessful\n\x1B[0m");
+			printf("\x1B[31m[evr][enable] Couldn't write to control register\n\x1B[0m");
 			pthread_mutex_unlock(&device->mutex);
 			return -1;
 		}
@@ -305,7 +235,7 @@ evr_enable(void* dev, bool enable)
 		status	=	writereg(device, REGISTER_CONTROL, 0);
 		if (status < 0)
 		{
-			printf("\x1B[31m[evr][] enable is unsuccessful\n\x1B[0m");
+			printf("\x1B[31m[evr][enable] Couldn't write to control register\n\x1B[0m");
 			pthread_mutex_unlock(&device->mutex);
 			return -1;
 		}
@@ -333,10 +263,18 @@ evr_isEnabled(void* dev)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][isEnabled] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
 	status	=	readreg(device, REGISTER_CONTROL, &data);
 	if (status < 0)
 	{ 
-		printf("\x1B[31m[evr][] enable is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][isEnabled] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -362,11 +300,19 @@ evr_flush(void* dev)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][flush] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
 	/*Act and check*/
 	status	=	writereg(device, REGISTER_CONTROL, CONTROL_FLUSH);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] flush is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][flush] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -379,7 +325,7 @@ evr_flush(void* dev)
 }
 
 /**
- * @brief	Sets the clock divisor
+ * @brief	Sets the frequency in MHz
  *
  * Divisor = event-frequency/1MHz. For example, at an event frequency of 125MHz, divisor = 125
  *
@@ -387,19 +333,33 @@ evr_flush(void* dev)
  * @return	0 on success, -1 on failure
  */
 long
-evr_setClock(void* dev, uint16_t divider)
+evr_setClock(void* dev, uint16_t frequency)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][setClock] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (frequency > MAX_EVENT_FREQUENCY)
+	{
+		printf("\x1B[31m[evr][setClock] Event frequency cannot be greater than 125MHz\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
 
 	/*Act*/
-	status	=	writecheck(device, REGISTER_USEC_DIVIDER, divider);
+	status	=	writecheck(device, REGISTER_USEC_DIVIDER, frequency);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setClock is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setClock] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -411,145 +371,42 @@ evr_setClock(void* dev, uint16_t divider)
 }
 
 /**
- * @brief	Enables/disables a level output
+ * @brief	Returns the set frequency in MHz
  *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
+ * Divisor = event-frequency/1MHz. For example, at an event frequency of 125MHz, divisor = 125
  *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	level	:	The level output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	*frequency	:	The returned frequency in MHz
  * @return	0 on success, -1 on failure
  */
-long	
-evr_enableLevel(void* dev, uint8_t level, bool enable)
+long
+evr_getClock(void* dev, uint16_t *frequency)
 {
-	uint16_t	data	=	0;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Get pulser status*/
-	status	=	readreg(device, REGISTER_LEVEL_ENABLE, &data);
-	if (status < 0)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] enableLevel is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][getClock] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!frequency)
+	{
+		printf("\x1B[31m[evr][getClock] Null pointer to frequency\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
-	/*Prepare pulser status*/
-	if (enable)
-		data	|=	(1<<level);
-	else
-		data	&=	~(1<<level);
-
-	/*Update pulser status*/
-	status	=	writecheck(device, REGISTER_LEVEL_ENABLE, data);
+	/*Act*/
+	status	=	readreg(device, REGISTER_USEC_DIVIDER, frequency);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] enableLevel is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Unlock mutex*/
-	pthread_mutex_unlock(&device->mutex);
-
-	return 0;
-}
-
-/**
- * @brief	Enables/disables a trigger output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The trigger output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	
-evr_enableTrigger(void* dev, uint8_t trigger, bool enable)
-{
-	uint16_t	data	=	0;
-	int32_t		status;
-	device_t	*device	=	(device_t*)dev;
-
-	/*Lock mutex*/
-	pthread_mutex_lock(&device->mutex);
-
-	/*Get pulser status*/
-	status	=	readreg(device, REGISTER_TRIGGER_ENABLE, &data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableTrigger is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Prepare pulser status*/
-	if (enable)
-		data	|=	(1<<trigger);
-	else
-		data	&=	~(1<<trigger);
-
-	/*Update pulser status*/
-	status	=	writecheck(device, REGISTER_TRIGGER_ENABLE, data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableTrigger is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Unlock mutex*/
-	pthread_mutex_unlock(&device->mutex);
-
-	return 0;
-}
-
-/**
- * @brief	Enables/disables a DBUS output
- *
- * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
- *
- * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The DBUS output being acted upon
- * @param	enable	:	Enables the output if true, disables it if false
- * @return	0 on success, -1 on failure
- */
-long	
-evr_enableDbus(void* dev, uint8_t dbus, bool enable)
-{
-	uint16_t	data	=	0;
-	int32_t		status;
-	device_t	*device	=	(device_t*)dev;
-
-	/*Lock mutex*/
-	pthread_mutex_lock(&device->mutex);
-
-	/*Get pulser status*/
-	status	=	readreg(device, REGISTER_DBUS_ENABLE, &data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableDbus is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Prepare pulser status*/
-	if (enable)
-		data	|=	(1<<dbus);
-	else
-		data	&=	~(1<<dbus);
-
-	/*Update pulser status*/
-	status	=	writecheck(device, REGISTER_DBUS_ENABLE, data);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] enableDbus is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][getClock] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -566,7 +423,7 @@ evr_enableDbus(void* dev, uint8_t dbus, bool enable)
  * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
  *
  * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The pulser output being acted upon
+ * @param	pulser	:	The pulser output being acted upon
  * @param	enable	:	Enables the output if true, disables it if false
  * @return	0 on success, -1 on failure
  */
@@ -580,11 +437,25 @@ evr_enablePulser(void* dev, uint8_t pulser, bool enable)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][enablePulser] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pulser >= NUMBER_OF_PULSERS)
+	{
+		printf("\x1B[31m[evr][enablePulser] Pulser must be 0-13\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
 	/*Get pulser status*/
 	status	=	readreg(device, REGISTER_PULSE_ENABLE, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] enablePulser is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][enablePulser] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -599,7 +470,7 @@ evr_enablePulser(void* dev, uint8_t pulser, bool enable)
 	status	=	writecheck(device, REGISTER_PULSE_ENABLE, data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] enablePulser is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][enablePulser] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -610,6 +481,13 @@ evr_enablePulser(void* dev, uint8_t pulser, bool enable)
 	return 0;
 }
 
+/**
+ * @brief	Checks if pulser is enabled
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pulser	:	The pulser output being acted upon
+ * @return	1 if true, 0 if false, -1 on failure
+ */
 long	
 evr_isPulserEnabled	(void* dev, uint8_t pulser)
 {
@@ -620,11 +498,25 @@ evr_isPulserEnabled	(void* dev, uint8_t pulser)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][isPulserEnabled] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pulser >= NUMBER_OF_PULSERS)
+	{
+		printf("\x1B[31m[evr][isPulserEnabled] Pulser must be 0-13\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
 	/*Get pulser status*/
 	status	=	readreg(device, REGISTER_PULSE_ENABLE, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] isPulserEnabled is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][isPulserEnabled] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -657,22 +549,34 @@ evr_setPulserDelay(void* dev, uint8_t pulser, float delay)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check delay*/
-	if (delay < 0 || delay > (UINT_MAX/USEC_DIVIDER))
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] setPulserDelay is unsuccessful: delay is too long\n\x1B[0m");
+		printf("\x1B[31m[evr][setPulserDelay] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pulser >= NUMBER_OF_PULSERS)
+	{
+		printf("\x1B[31m[evr][setPulserDelay] Pulser must be 0-13\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (delay < 0 || delay > (UINT_MAX/device->frequency))
+	{
+		printf("\x1B[31m[evr][setPulserDelay] Delay must be less than %f microseconds\n\x1B[0m", (UINT_MAX/(double)device->frequency));
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
 	/*Convert pulser delay*/
-	cycles	=	delay*USEC_DIVIDER;	
+	cycles	=	delay*device->frequency;	
 
 	/*Select pulser*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT,	pulser + PULSE_SELECT_OFFSET);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPulserDelay is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPulserDelay] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -681,14 +585,14 @@ evr_setPulserDelay(void* dev, uint8_t pulser, float delay)
 	status	=	writecheck(device, REGISTER_PULSE_DELAY, cycles>>16);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPulserDelay is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPulserDelay] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 	status	=	writecheck(device, REGISTER_PULSE_DELAY+2, cycles);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPulserDelay is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPulserDelay] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -713,17 +617,28 @@ long
 evr_getPulserDelay(void* dev, uint8_t pulser, double *delay)
 {
 	uint16_t	data	=	0;
-	uint32_t	cycles;
-	int32_t		status;
+	uint32_t	cycles; int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check input*/
-	if (!dev || !delay)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] Null pointer.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPulserDelay] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pulser >= NUMBER_OF_PULSERS)
+	{
+		printf("\x1B[31m[evr][getPulserDelay] Pulser must be 0-13\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!delay)
+	{
+		printf("\x1B[31m[evr][getPulserDelay] Null pointer to delay\r\n");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -732,7 +647,7 @@ evr_getPulserDelay(void* dev, uint8_t pulser, double *delay)
 	status	=	writecheck(device, REGISTER_PULSE_SELECT,	pulser + PULSE_SELECT_OFFSET);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to select pulser.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPulserDelay] Unable to select pulser.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -741,7 +656,7 @@ evr_getPulserDelay(void* dev, uint8_t pulser, double *delay)
 	status	=	readreg(device, REGISTER_PULSE_DELAY, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to read delay.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPulserDelay] Unable to read delay.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -751,14 +666,14 @@ evr_getPulserDelay(void* dev, uint8_t pulser, double *delay)
 	status	=	readreg(device, REGISTER_PULSE_DELAY+2, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to read delay.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPulserDelay] Unable to read delay.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 	cycles	|=	data;
 
 	/*Convert pulser delay*/
-	*delay	=	cycles/(double)USEC_DIVIDER;	
+	*delay	=	cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -788,22 +703,34 @@ evr_setPulserWidth(void* dev, uint8_t pulser, float width)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check width*/
-	if (width < 0 || width > (USHRT_MAX/USEC_DIVIDER))
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] setPulserWidth is unsuccessful: width is too long\n\x1B[0m");
+		printf("\x1B[31m[evr][setPulserWidth] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pulser >= NUMBER_OF_PULSERS)
+	{
+		printf("\x1B[31m[evr][setPulserWidth] Pulser must be 0-13\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (width < 0 || width > (USHRT_MAX/device->frequency))
+	{
+		printf("\x1B[31m[evr][setPulserWidth] Width must be less than %f microseconds\n\x1B[0m", (USHRT_MAX/(double)device->frequency));
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
 	/*Convert pulser delay*/
-	cycles	=	width*USEC_DIVIDER;	
+	cycles	=	width*device->frequency;	
 
 	/*Select pulser*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT,	pulser + PULSE_SELECT_OFFSET);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPulserWidth is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPulserWidth] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -812,7 +739,7 @@ evr_setPulserWidth(void* dev, uint8_t pulser, float width)
 	status	=	writecheck(device, REGISTER_PULSE_WIDTH+2, cycles);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPulserWidth is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPulserWidth] Couldn't write to regster\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -843,10 +770,22 @@ evr_getPulserWidth(void* dev, uint8_t pulser, double *width)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check input*/
-	if (!dev || !width)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] Null pointer.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPulserWidth] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pulser >= NUMBER_OF_PULSERS)
+	{
+		printf("\x1B[31m[evr][getPulserWidth] Pulser must be 0-13\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!width)
+	{
+		printf("\x1B[31m[evr][getPulserWidth] Null pointer to width\r\n");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -855,7 +794,7 @@ evr_getPulserWidth(void* dev, uint8_t pulser, double *width)
 	status	=	writecheck(device, REGISTER_PULSE_SELECT,	pulser + PULSE_SELECT_OFFSET);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to select pulser.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPulserWidth] Unable to select pulser.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -864,13 +803,13 @@ evr_getPulserWidth(void* dev, uint8_t pulser, double *width)
 	status	=	readreg(device, REGISTER_PULSE_WIDTH+2, &cycles);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to read delay.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPulserWidth] Unable to read width.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
 	/*Convert pulser delay*/
-	*width	=	cycles/(double)USEC_DIVIDER;	
+	*width	=	cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -884,7 +823,7 @@ evr_getPulserWidth(void* dev, uint8_t pulser, double *width)
  * Reads the enable register, calculates the new value according to the passed arguments, and writes back the new value.
  *
  * @param	*dev	:	A pointer to the device being acted upon
- * @param	trigger	:	The PDP output being acted upon
+ * @param	pdp		:	The PDP output being acted upon
  * @param	enable	:	Enables the output if true, disables it if false
  * @return	0 on success, -1 on failure
  */
@@ -898,26 +837,40 @@ evr_enablePdp(void* dev, uint8_t pdp, bool enable)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Get pulser status*/
-	status	=	readreg(device, REGISTER_PDP_ENABLE, &data);
-	if (status < 0)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] enablePdp is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][enablePdp] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][enablePdp] Pdp must be 0-3\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
-	/*Prepare pulser status*/
+	/*Get pdp status*/
+	status	=	readreg(device, REGISTER_PDP_ENABLE, &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][enablePdp] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Prepare pdp status*/
 	if (enable)
 		data	|=	(1<<pdp);
 	else
 		data	&=	~(1<<pdp);
 
-	/*Update pulser status*/
+	/*Update pdp status*/
 	status	=	writecheck(device, REGISTER_PDP_ENABLE, data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] enablePdp is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][enablePdp] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -928,6 +881,13 @@ evr_enablePdp(void* dev, uint8_t pdp, bool enable)
 	return 0;
 }
 
+/**
+ * @brief	Checks if pdp is enabled.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The PDP output being acted upon
+ * @return	1 if true, 0 if false, -1 on failure
+ */
 long	
 evr_isPdpEnabled(void* dev, uint8_t pdp)
 {
@@ -938,11 +898,25 @@ evr_isPdpEnabled(void* dev, uint8_t pdp)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Get pulser status*/
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][isPdpEnabled] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][isPdpEnabled] Pdp must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Get pdp status*/
 	status	=	readreg(device, REGISTER_PDP_ENABLE, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] isPulserEnabled is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][isPdpEnabled] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -953,6 +927,14 @@ evr_isPdpEnabled(void* dev, uint8_t pdp)
 	return (data&(1<<pdp));
 }
 
+/**
+ * @brief	Sets pdp prescaler
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	pdp			:	The pdp being acted upon
+ * @param	prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_setPdpPrescaler(void* dev, uint8_t pdp, uint16_t prescaler)
 {
@@ -962,11 +944,25 @@ evr_setPdpPrescaler(void* dev, uint8_t pdp, uint16_t prescaler)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][setPdpPrescaler] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][setPdpPrescaler] Pdp must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
 	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpPrescaler] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -975,7 +971,7 @@ evr_setPdpPrescaler(void* dev, uint8_t pdp, uint16_t prescaler)
 	status	=	writecheck(device, REGISTER_PULSE_PRESCALAR, prescaler);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpPrescaler] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -986,6 +982,14 @@ evr_setPdpPrescaler(void* dev, uint8_t pdp, uint16_t prescaler)
 	return 0;
 }
 
+/**
+ * @brief	Reads pdp prescaler
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	pdp			:	The pdp being acted upon
+ * @param	*prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPdpPrescaler(void* dev, uint8_t pdp, uint16_t *prescaler)
 {
@@ -995,20 +999,40 @@ evr_getPdpPrescaler(void* dev, uint8_t pdp, uint16_t *prescaler)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Select pdp*/
-	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
-	if (status < 0)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpPrescaler] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][getPdpPrescaler] Pdp must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!prescaler)
+	{
+		printf("\x1B[31m[evr][getPdpPrescaler] Null pointer to prescaler\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
-	/*Write new prescalar*/
+	/*Select pdp*/
+	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getPdpPrescaler] Couldn't write to register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read prescalar*/
 	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, prescaler);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpPrescaler is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpPrescaler] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1019,10 +1043,23 @@ evr_getPdpPrescaler(void* dev, uint8_t pdp, uint16_t *prescaler)
 	return 0;
 }
 
-
+/**
+ * @brief	Sets pdp delay
+ *
+ * Converts pdp delay from microseconds to clock cycles then writes the value to the delay register of the pdp.
+ * Takes the pdp prescaler into account when calculating the cycles.
+ * Maximum delay in microseconds = max_prescaler*2^32/event_frequency in MHz.
+ * For example, @F = 125MHz, prescaler = 1, Maximum delay = 34.4s (34.4e6 microseconds)
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	delay	:	The delay, in microseconds, of the pdp specified in the second argument
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 {
+	uint16_t	prescaler;	
 	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -1030,32 +1067,59 @@ evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check delay*/
-
-	/*Convert pdp delay*/
-	cycles	=	delay*USEC_DIVIDER;	
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][setPdpDelay] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][setPdpDelay] Pdp must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (delay < 0 || delay > (UINT_MAX/device->frequency))
+	{
+		printf("\x1B[31m[evr][setPdpDelay] Delay must be less than %f microseconds\n\x1B[0m", (UINT_MAX/(double)device->frequency));
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
 
 	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpDelay is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpDelay] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][setPdpDelay] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Convert pdp delay*/
+	cycles	=	delay*device->frequency/prescaler;	
 
 	/*Write new delay*/
 	status	=	writecheck(device, REGISTER_PULSE_DELAY, cycles>>16);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpDelay is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpDelay] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 	status	=	writecheck(device, REGISTER_PULSE_DELAY+2, cycles);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpDelay is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpDelay] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1066,10 +1130,22 @@ evr_setPdpDelay(void* dev, uint8_t pdp, float delay)
 	return 0;
 }
 
+/**
+ * @brief	Gets pdp delay
+ *
+ * Reads pdp delay and converts it from clock cycles to microseconds.
+ * Takes the pdp prescaler into account when calculating the cycles.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	*delay	:	The delay, in microseconds, of the pdp
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 {
-	uint16_t	data	=	0;
+	uint16_t	prescaler;
+	uint16_t	data;
 	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -1077,19 +1153,40 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check input*/
-	if (!dev || !delay)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] Null pointer.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpDelay] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][getPdpDelay] Pdp must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!delay)
+	{
+		printf("\x1B[31m[evr][getPdpDelay] Null pointer to delay\r\n");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
-	/*Select pulser*/
+	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to select pulser.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpDelay] Unable to select pulser.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getPdpDelay] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1098,7 +1195,7 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 	status	=	readreg(device, REGISTER_PULSE_DELAY, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to read delay.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpDelay] Unable to read delay.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1108,14 +1205,14 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 	status	=	readreg(device, REGISTER_PULSE_DELAY+2, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to read delay.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpDelay] Unable to read delay.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 	cycles	|=	data;
 
-	/*Convert pulser delay*/
-	*delay	=	cycles/(double)USEC_DIVIDER;	
+	/*Convert delay*/
+	*delay	=	prescaler*cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -1123,9 +1220,23 @@ evr_getPdpDelay(void* dev, uint8_t pdp, double *delay)
 	return 0;
 }
 
+/**
+ * @brief	Sets pdp width
+ *
+ * Converts pdp width from microseconds to clock cycles then writes the value to the width register of the pdp.
+ * Takes the pdp prescaler into account when calculating the cycles.
+ * Maximum width in microseconds = maximum_prescaler*2^32/event_frequency in MHz.
+ * For example, @F = 125MHz, prescaler = 1, Maximum width ~  34 seconds.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	width	:	The width, in microseconds, of the pdp specified in the second argument
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 {
+	uint16_t	prescaler;
 	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -1133,32 +1244,59 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check width*/
-
-	/*Convert pdp delay*/
-	cycles	=	width*USEC_DIVIDER;	
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][setPdpWidth] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][setPdpWidth] Pdp must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (width < 0 || width > (UINT_MAX/device->frequency))
+	{
+		printf("\x1B[31m[evr][setPdpWidth] Width must be less than %f microseconds\n\x1B[0m", (UINT_MAX/(double)device->frequency));
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
 
 	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpWidth is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpWidth] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][setPdpWidth] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Convert pdp delay*/
+	cycles	=	width*device->frequency/prescaler;	
 
 	/*Write new width*/
 	status	=	writecheck(device, REGISTER_PULSE_WIDTH, cycles>>16);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpWidth is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpWidth] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 	status	=	writecheck(device, REGISTER_PULSE_WIDTH+2, cycles);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPdpWidth is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPdpWidth] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1169,44 +1307,88 @@ evr_setPdpWidth(void* dev, uint8_t pdp, float width)
 	return 0;
 }
 
+/**
+ * @brief	Reads pdp width
+ *
+ * Takes the pdp prescaler into account when calculating the cycles.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	pdp		:	The pdp being acted upon
+ * @param	width	:	The width, in microseconds, of the pdp specified in the second argument
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 {
-	uint16_t	cycles;
+	uint16_t	prescaler;
+	uint16_t	data;
+	uint32_t	cycles;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check input*/
-	if (!dev || !width)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] Null pointer.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpWidth] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (pdp >= NUMBER_OF_PDP)
+	{
+		printf("\x1B[31m[evr][getPdpWidth] Pdp must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!width)
+	{
+		printf("\x1B[31m[evr][getPdpWidth] Null pointer to delay\r\n");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
-	/*Select pulser*/
+	/*Select pdp*/
 	status	=	writecheck(device, REGISTER_PULSE_SELECT, pdp);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to select pulser.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpWidth] Unable to select pulser.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_PULSE_PRESCALAR, &prescaler);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][setPdpPrescaler] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
 	/*Read width*/
-	status	=	readreg(device, REGISTER_PULSE_WIDTH+2, &cycles);
+	status	=	readreg(device, REGISTER_PULSE_WIDTH, &data);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] Unable to read delay.\n\x1B[0m");
+		printf("\x1B[31m[evr][getPdpWidth] Unable to read width.\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
+	cycles	=	data;
+	cycles	<<=	16;
 
-	/*Convert pulser delay*/
-	*width	=	cycles/(double)USEC_DIVIDER;	
+	status	=	readreg(device, REGISTER_PULSE_WIDTH+2, &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getPdpWidth] Unable to read width.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	cycles	|=	data;
+
+	/*Convert pulser width*/
+	*width	=	prescaler*cycles/(double)device->frequency;	
 
 	/*Unlock mutex*/
 	pthread_mutex_unlock(&device->mutex);
@@ -1215,13 +1397,113 @@ evr_getPdpWidth(void* dev, uint8_t pdp, double *width)
 }
 
 /**
- * @brief	Resets polarity for all outputs
+ * @brief	Enables/disables a CML output
  *
  * @param	*dev	:	A pointer to the device being acted upon
+ * @param	cml		:	The cml output being acted upon
+ * @param	enable	:	Enables the output if true, disables it if false
  * @return	0 on success, -1 on failure
  */
-long
-evr_setPolarity(void* dev)
+long	
+evr_enableCml(void* dev, uint8_t cml, bool enable)
+{
+	uint16_t	data	=	0;
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][enableCml] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (cml >= NUMBER_OF_CML)
+	{
+		printf("\x1B[31m[evr][enableCml] Cml must be 0-2\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	if (enable)
+		data	=	CML_FREQUENCY_MODE + CML_ENABLE;
+	else
+		data	=	CML_FREQUENCY_MODE;
+
+	/*Update cml status*/
+	status	=	writecheck(device, REGISTER_CML4_ENABLE + (cml*0x20), data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][enableCml] Couldn't write to register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+/**
+ * @brief	Checks if cml is enabled.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	cml		:	The cml output being acted upon
+ * @return	1 if true, 0 if false, -1 on failure
+ */
+long	
+evr_isCmlEnabled(void* dev, uint8_t cml)
+{
+	uint16_t	data	=	0;
+	int32_t		status;
+	device_t*	device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][isCmlEnabled] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (cml >= NUMBER_OF_CML)
+	{
+		printf("\x1B[31m[evr][isCmlEnabled] Cml must be 0-2\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Get cml status*/
+	status	=	readreg(device, REGISTER_CML4_ENABLE + (cml*0x20), &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][isCmlEnabled] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return (data&CML_ENABLE);
+}
+
+/**
+ * @brief	Sets cml prescaler
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	cml			:	The cml being acted upon
+ * @param	prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
+long	
+evr_setCmlPrescaler(void* dev, uint8_t cml, uint32_t prescaler)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -1229,18 +1511,32 @@ evr_setPolarity(void* dev)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Act*/
-	status	=	writecheck(device, REGISTER_PULSE_POLARITY, 0);
-	if (status < 0)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] setPolarity is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setCmlPrescaler] Null pointer to device\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
-	status	=	writecheck(device, REGISTER_PULSE_POLARITY+2, 0);
+	if (cml >= NUMBER_OF_CML)
+	{
+		printf("\x1B[31m[evr][setCmlPrescaler] Cml must be 0-2\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Write new width*/
+	status	=	writecheck(device, REGISTER_CML4_HP + (cml*0x20), prescaler/2);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPolarity is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setCmlPrescaler] Couldn't write to register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	status	=	writecheck(device, REGISTER_CML4_LP + (cml*0x20), prescaler - (prescaler/2));
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][setCmlPrescaler] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1252,28 +1548,98 @@ evr_setPolarity(void* dev)
 }
 
 /**
- * @brief	Flushes RAM, adds a new event, and sets all of its outputs
+ * @brief	Reads cml prescaler
  *
- * Gaurantees that a single event is present in RAM by first flushing RAM and then writing the new event.
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	cml			:	The cml being acted upon
+ * @param	*prescaler	:	The prescaler
+ * @return	0 on success, -1 on failure
+ */
+long	
+evr_getCmlPrescaler(void* dev, uint8_t cml, uint32_t *prescaler)
+{
+	uint16_t	data	=	0;
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][getCmlPrescaler] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (cml >= NUMBER_OF_CML)
+	{
+		printf("\x1B[31m[evr][getCmlPrescaler] Cml must be 0-2\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!prescaler)
+	{
+		printf("\x1B[31m[evr][getCmlPrescaler] Null pointer to prescaler\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read prescaler*/
+	status	=	readreg(device, REGISTER_CML4_HP + (cml*0x20), &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getCmlPrescaler] Unable to read prescaler.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	*prescaler	=	data;
+
+	status	=	readreg(device, REGISTER_CML4_LP + (cml*0x20), &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getCmlPrescaler] Unable to read prescaler.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	*prescaler	+=	data;
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+/**
+ * @brief	Maps an event to actions.
  *
  * @param	*dev	:	A pointer to the device being acted upon
  * @param	event	:	New event to be added
+ * @param	map		:	The actions to be taken upon receiving the event
  * @return	0 on success, -1 on failure
  */
 long
-evr_setEvent(void* dev, uint8_t event, uint16_t map)
+evr_setMap(void* dev, uint8_t event, uint16_t map)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][setMap] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
 
 	/*Select event*/
 	status	=	writecheck(device, REGISTER_MAP_ADDRESS, event);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setEvent is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setMap] Couldn't write register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1282,7 +1648,56 @@ evr_setEvent(void* dev, uint8_t event, uint16_t map)
 	status	=	writecheck(device, REGISTER_MAP_DATA, map);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setEvent is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setMap] Couldn't write register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+/**
+ * @brief	Reads the actions that correspond to an event
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	event	:	The event
+ * @param	*map	:	The actions of the event
+ * @return	0 on success, -1 on failure
+ */
+long
+evr_getMap(void* dev, uint8_t event, uint16_t *map)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev || !map)
+	{
+		printf("\x1B[31m[evr][setPdpPrescaler] Null pointers\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Select event*/
+	status	=	writecheck(device, REGISTER_MAP_ADDRESS, event);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getMap] Couldn't write to register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read event actions*/
+	status	=	readreg(device, REGISTER_MAP_DATA, map);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][setMap] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1310,10 +1725,16 @@ evr_setPrescaler(void* dev, uint8_t select, uint16_t prescaler)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Check selection*/
-	if (select >= NUMBER_OF_PRESCALARS)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] setPrescaler is unsuccessful: Only three prescalers are available\n\x1B[0m");
+		printf("\x1B[31m[evr][setPrescaler] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (select >= NUMBER_OF_PRESCALERS)
+	{
+		printf("\x1B[31m[evr][setPrescaler] select must be 0-2\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1322,7 +1743,7 @@ evr_setPrescaler(void* dev, uint8_t select, uint16_t prescaler)
 	status	=	writecheck(device, REGISTER_PRESCALAR_0+(select*2), prescaler);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPrescaler is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPrescaler] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1333,6 +1754,14 @@ evr_setPrescaler(void* dev, uint8_t select, uint16_t prescaler)
 	return 0;
 }
 
+/**
+ * @brief	Reads selected prescalar
+ *
+ * @param	*dev		:	A pointer to the device being acted upon
+ * @param	select		:	Prescalar to be set (0, 1, or 2)
+ * @param	*prescalar	:	Value of prescalar
+ * @return	0 on success, -1 on failure
+ */
 long	
 evr_getPrescaler(void* dev, uint8_t select, uint16_t *prescaler)
 {
@@ -1343,9 +1772,15 @@ evr_getPrescaler(void* dev, uint8_t select, uint16_t *prescaler)
 	pthread_mutex_lock(&device->mutex);
 
 	/*Check selection*/
-	if (select >= NUMBER_OF_PRESCALARS)
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] setPrescaler is unsuccessful: Only three prescalers are available\n\x1B[0m");
+		printf("\x1B[31m[evr][setPrescaler] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (select >= NUMBER_OF_PRESCALERS)
+	{
+		printf("\x1B[31m[evr][setPrescaler] select must be 0-2\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1354,7 +1789,7 @@ evr_getPrescaler(void* dev, uint8_t select, uint16_t *prescaler)
 	status	=	readreg(device, REGISTER_PRESCALAR_0+(select*2), prescaler);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPrescaler is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setPrescaler] Couldn't read register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1366,13 +1801,15 @@ evr_getPrescaler(void* dev, uint8_t select, uint16_t *prescaler)
 }
 
 /**
- * @brief	Routes prescaler outputs 0, 1, and 2 to universal outputs 0, 1, and 2 on the front panel
+ * @brief	Routes source to TTL output
  *
  * @param	*dev	:	A pointer to the device being acted upon
+ * @param	ttl		:	TTL output
+ * @param	source	:	The source
  * @return	0 on success, -1 on failure
  */
 long
-evr_muxFrontPanel(void *dev)
+evr_setTTLSource(void *dev, uint8_t ttl, uint8_t source)
 {
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
@@ -1380,38 +1817,31 @@ evr_muxFrontPanel(void *dev)
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Route PDP to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP0, FP_MUX_PDP0);
-	if (status < 0)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setTTLSource] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (ttl >= NUMBER_OF_TTL)
+	{
+		printf("\x1B[31m[evr][setTTLSource] Ttl must be 0-7\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (source >= NUMBER_OF_SOURCES)
+	{
+		printf("\x1B[31m[evr][setTTLSource] Source must be < 64\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
 	/*Route PDP to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP1, FP_MUX_PDP1);
+	status	=	writecheck(device, REGISTER_FP_TTL0 + (ttl*2), source);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Route prescaler to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP2, FP_MUX_PDP2);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-
-	/*Route prescaler to UNIV*/
-	status	=	writecheck(device, REGISTER_FP_UNIV_MAP3, FP_MUX_PDP3);
-	if (status < 0)
-	{
-		printf("\x1B[31m[evr][] muxFrontPanel is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setTTLSource] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1423,42 +1853,101 @@ evr_muxFrontPanel(void *dev)
 }
 
 /**
- * @brief	Sets external event
+ * @brief	Reads the source of a TTL output
  *
  * @param	*dev	:	A pointer to the device being acted upon
- * @param	event	:	Event to be generated upon external trigger	
+ * @param	ttl		:	TTL output
+ * @param	*source	:	The source
  * @return	0 on success, -1 on failure
  */
-long	
-evr_setExternalEvent(void* dev, uint8_t event)
+long
+evr_getTTLSource(void *dev, uint8_t ttl, uint8_t *source)
 {
-	uint16_t	data	=	0;
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+	uint16_t	readback;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][getTTLSource] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (ttl >= NUMBER_OF_TTL)
+	{
+		printf("\x1B[31m[evr][getTTLSource] Ttl must be 0-7\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!source)
+	{
+		printf("\x1B[31m[evr][getTTLSource] Null pointer to source\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Route source to destination*/
+	status	=	readreg(device, REGISTER_FP_TTL0 + (ttl*2), &readback);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getTTLSource] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	*source	=	readback;
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+/**
+ * @brief	Routes source to UNIV output
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	univ	:	UNIV output
+ * @param	source	:	The source
+ * @return	0 on success, -1 on failure
+ */
+long
+evr_setUNIVSource(void *dev, uint8_t univ, uint8_t source)
+{
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
 
 	/*Lock mutex*/
 	pthread_mutex_lock(&device->mutex);
 
-	/*Write new event*/
-	status	=	writereg(device, REGISTER_EXTERNAL_EVENT, event);
-	if (status < 0)
+	/*Check inputs*/
+	if (!dev)
 	{
-		printf("\x1B[31m[evr][] setExternalEvent is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setUNIVSource] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (univ >= NUMBER_OF_UNIV)
+	{
+		printf("\x1B[31m[evr][setUNIVSource] Univ must be 0-3\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (source >= NUMBER_OF_SOURCES)
+	{
+		printf("\x1B[31m[evr][setUNIVSource] Source must be < 64\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
 
-	/*Check that new delay was updated*/
-	status	=	readreg(device, REGISTER_EXTERNAL_EVENT, &data);
+	/*Route source to destination*/
+	status	=	writecheck(device, REGISTER_FP_UNIV0 + (univ*2), source);
 	if (status < 0)
 	{
-		printf("\x1B[31m[evr][] setPrescaler is unsuccessful\n\x1B[0m");
-		pthread_mutex_unlock(&device->mutex);
-		return -1;
-	}
-	if (data != event)
-	{
-		printf("\x1B[31m[evr][] setPrescaler is unsuccessful\n\x1B[0m");
+		printf("\x1B[31m[evr][setUNIVSource] Couldn't write to register\n\x1B[0m");
 		pthread_mutex_unlock(&device->mutex);
 		return -1;
 	}
@@ -1469,12 +1958,117 @@ evr_setExternalEvent(void* dev, uint8_t event)
 	return 0;
 }
 
+/**
+ * @brief	Reads the source of a UNIV output
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	univ	:	UNIV output
+ * @param	*source	:	The source
+ * @return	0 on success, -1 on failure
+ */
+long
+evr_getUNIVSource(void *dev, uint8_t univ, uint8_t *source)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][getUNIVSource] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (univ >= NUMBER_OF_UNIV)
+	{
+		printf("\x1B[31m[evr][getUNIVSource] Univ must be 0-7\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+	if (!source)
+	{
+		printf("\x1B[31m[evr][getUNIVSource] Null pointer to source\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Route PDP to UNIV*/
+	status	=	readreg(device, REGISTER_FP_UNIV0 + (univ*2), (uint16_t*)source);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getUNIVSource] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+/**
+ * @brief	Reads firmware version.
+ *
+ * @param *dev		:	A pointer to the device being acted upon
+ * @param *version	:	The firmware version
+ */
+long
+evr_getFirmwareVersion(void* dev, uint16_t *version)
+{
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev || !version)
+	{
+		printf("\x1B[31m[evr][getFirmwareVersion] Null pointer.\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Write new event*/
+	status	=	readreg(device, REGISTER_FIRMWARE, version);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][getFirmwareVersion] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+/**
+ * @brief	Writes device's 16-bit register and checks the register was written
+ *
+ * Prepares UDP message, sends it to device
+ * Reads back the value in the register and validates the write
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @param	reg		:	Address of register to be written
+ * @param	data	:	16-bit data to be written to device
+ * @return	0 on success, -1 on failure
+ */
 static long	
 writecheck(void *dev, evrregister_t reg, uint16_t data)
 {
 	uint16_t	readback;
 	int32_t		status;
 	device_t	*device	=	(device_t*)dev;
+
+	/*Check inputs*/
+	if (!dev)
+		return -1;
 
 	/*Write data*/
 	status	=	writereg(device, reg, data);
@@ -1512,6 +2106,10 @@ readreg(void *dev, evrregister_t reg, uint16_t *data)
 	device_t		*device	=	(device_t*)dev;
 	struct pollfd	events[1];
 
+	/*Check inputs*/
+	if (!dev || !data)
+		return -1;
+
 	/*Prepare message*/
 	message.access		=	ACCESS_READ;
 	message.status		=	0;
@@ -1543,10 +2141,7 @@ readreg(void *dev, evrregister_t reg, uint16_t *data)
 	}
 
 	if (retries >= NUMBER_OF_RETRIES)
-	{
-		printf("\x1B[31m[evr][] Read is unsuccessful\n\x1B[0m");
 		return -1;
-	}
 
 	/*Extract data*/
 	*data	=	ntohs(message.data);
@@ -1573,6 +2168,9 @@ writereg(void *dev, evrregister_t reg, uint16_t data)
 	message_t		message;
 	device_t		*device	=	(device_t*)dev;
 	struct pollfd	events[1];
+
+	if (!dev)
+		return -1;
 
 	/*Prepare message*/
 	message.access		=	ACCESS_WRITE;
@@ -1606,10 +2204,7 @@ writereg(void *dev, evrregister_t reg, uint16_t data)
 	}
 
 	if (retries >= NUMBER_OF_RETRIES)
-	{
-		printf("\x1B[31m[evr][] Write is unsuccessful\n\x1B[0m");
 		return -1;
-	}
 
 	return 0;
 }
@@ -1640,17 +2235,19 @@ report(int detail)
 /*
  * Configuration and registration functions and variables
  */
-static 	const 	iocshArg		configureArg0 	= 	{ "name", 	iocshArgString };
-static 	const 	iocshArg		configureArg1 	= 	{ "ip", 	iocshArgString };
-static 	const 	iocshArg		configureArg2 	= 	{ "port", 	iocshArgString };
+static 	const 	iocshArg		configureArg0 	= 	{ "name",		iocshArgString };
+static 	const 	iocshArg		configureArg1 	= 	{ "ip",			iocshArgString };
+static 	const 	iocshArg		configureArg2 	= 	{ "port",		iocshArgString };
+static 	const 	iocshArg		configureArg3 	= 	{ "frequency", 	iocshArgString };
 static 	const 	iocshArg*		configureArgs[] = 
 {
     &configureArg0,
     &configureArg1,
     &configureArg2,
+    &configureArg3,
 };
-static	const	iocshFuncDef	configureDef	=	{ "evrConfigure", 3, configureArgs };
-static 	long	configure(char *name, char *ip, char* port)
+static	const	iocshFuncDef	configureDef	=	{ "evrConfigure", 4, configureArgs };
+static 	long	configure(char *name, char *ip, char* port, char* frequency)
 {
 
 	struct sockaddr_in	address;
@@ -1675,10 +2272,16 @@ static 	long	configure(char *name, char *ip, char* port)
 		printf("\x1B[31m[evr][] Unable to configure device: Missing or incorrect port\r\n\x1B[0m");
 		return -1;
 	}
+	if (!frequency || !strlen(frequency) || !atoi(frequency))
+	{
+		printf("\x1B[31m[evr][] Unable to configure device: Missing or incorrect name\r\n\x1B[0m");
+		return -1;
+	}
 
 	strcpy(devices[deviceCount].name, 	name);
-	devices[deviceCount].ip		=	inet_addr(ip);
-	devices[deviceCount].port	=	htons(atoi(port));
+	devices[deviceCount].ip			=	inet_addr(ip);
+	devices[deviceCount].port		=	htons(atoi(port));
+	devices[deviceCount].frequency	=	atoi(frequency);
 
 	deviceCount++;
 
@@ -1687,7 +2290,7 @@ static 	long	configure(char *name, char *ip, char* port)
 
 static void configureFunc (const iocshArgBuf *args)
 {
-    configure(args[0].sval, args[1].sval, args[2].sval);
+    configure(args[0].sval, args[1].sval, args[2].sval, args[3].sval);
 }
 
 static void evrRegister(void)

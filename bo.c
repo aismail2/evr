@@ -211,6 +211,8 @@ thread(void* arg)
 		status	=	evr_enablePulser(private->device, private->parameter, record->rval);
 	else if (strcmp(private->command, "enablePdp") == 0)
 		status	=	evr_enablePdp(private->device, private->parameter, record->rval);
+	else if (strcmp(private->command, "enableCml") == 0)
+		status	=	evr_enableCml(private->device, private->parameter, record->rval);
 	else
 	{
 		printf("[evr][thread] Unable to io %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);

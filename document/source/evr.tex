@@ -1,0 +1,214 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{comment}				% Ignore text
+\usepackage{verbatim}				% Format text exactly as typed
+\usepackage[T1]{fontenc}			% Support for accented characters
+\usepackage{graphicx}				% Include graphics
+\usepackage{hyperref}				% Hyperlinks
+\usepackage{pdfpages}				% Insert pdf files
+\usepackage{appendix}				% Format titles of appendices
+\usepackage{placeins}				% Barriers for floats
+\usepackage{ltablex}				% Variable width long tables
+\usepackage{fancyhdr,lastpage}		% Headers and footers
+\usepackage{mathtools}				% Formulas
+\usepackage{parskip}				% Skip line between paragraphs
+\usepackage[english]{babel}			% Language
+\usepackage[newcommands]{ragged2e}	% Softer left-alignment of text
+\usepackage[hmargin=3cm,vmargin=3cm]{geometry}	% Margins
+
+% -----------------------------------------------------------------------------
+% Document variables ... Change here
+% -----------------------------------------------------------------------------
+\newcommand{\mytitle}		{\uppercase{MRF VME-EVR-230 EPICS DRIVER}}	% Title
+\newcommand{\mysubtitle}	{Design Notes}				% Subtitle
+\newcommand{\mydocument}	{EVR}						% Document Name
+\newcommand{\myrevision}	{0.1}						% Document Revision
+\newcommand{\mydate}		{\today}					% Date
+\newcommand{\myauthor}		{Abdallah Ismail}			% Author
+\newcommand{\myreviewer}	{}							% Reviewer
+\newcommand{\myapprover}	{}							% Approver
+
+\begin{document}
+
+% ------------------------------------------------
+% Title page and document format ... Do not change here
+% ------------------------------------------------
+\thispagestyle{empty}
+
+\centering
+\includegraphics[scale=0.2]{data/company-logo.jpg}\\
+\vspace{.5cm}
+\rule{\linewidth}{0.5pt}\\
+\vspace{.5cm}
+\LARGE \textbf{\mytitle}\\[0.5cm]
+\large \textbf{\mysubtitle}\\
+\vspace{.5cm}
+\rule{\linewidth}{0.5pt}\\
+\vspace{.5cm}
+\normalsize \mydocument ~Rev \myrevision\\
+\vspace{.5cm}
+\normalsize \mydate\\
+
+\vfill
+Authored by:\underline{\makebox[5cm][c]{\myauthor}}\\{\vspace{1cm}}
+Reviewed by:\underline{\makebox[5cm][c]{\myreviewer}}\\{\vspace{1cm}}
+Approved by:\underline{\makebox[5cm][c]{\myapprover}}\\{\vspace{1cm}}
+Access List:\underline{\makebox[5cm][c]{\begin{Form}\CheckBox{Internal}~\CheckBox{External}\end{Form}}}\\{\vspace{1cm}}
+
+\vfill
+\small{SESAME, P.O. Box 7, Allan, 19252, Jordan, www.sesame.org.jo}
+
+\newpage
+
+\pagestyle{fancy}
+\lhead{SESAME}
+\chead{}
+\rhead{\mydocument ~Rev \myrevision}
+\lfoot{\mydate}
+\cfoot{\mytitle}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\fancypagestyle{plain}{
+	\lhead{SESAME}
+	\chead{}
+	\rhead{\mydocument ~Rev \myrevision}
+	\lfoot{\mydate}
+	\cfoot{\mytitle}
+	\renewcommand{\headrulewidth}{0.4pt}
+	\renewcommand{\footrulewidth}{0.4pt}
+}
+
+\rfoot{Page \thepage}
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\large
+\textbf{\uppercase{Revision History}}\\
+\normalsize
+\begin{tabularx}{\linewidth}{ccXX}
+	\hline
+	\textbf{Revision}	&	\textbf{Date}	&	\textbf{Description}	&	\textbf{Author}\\
+	0.1					&	20151212		&	Created document		&	Abdallah Ismail\\
+	\hline
+\end{tabularx}
+\newpage
+
+\tableofcontents
+\newpage
+
+\rfoot{Page \thepage/\pageref{LastPage}}
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\setcounter{table}{0}
+
+\justifying
+
+% ------------------------------------------------------------------------------
+% Begin document
+% ------------------------------------------------------------------------------
+\section*{Abstract}
+
+\section{Requirements}
+The driver should support the following Event Reciever (EVR) features:
+\begin{itemize}
+	\item Event decoding
+	\item Pulsers
+	\item Delayed pulsers
+	\item Prescalers
+	\item Front panel mux
+	\item Frequency mode CML outputs
+	\item Clock
+\end{itemize}
+
+	\subsection{Event Decoding}
+	\begin{itemize}
+		\item Flush RAM.
+		\item Select active RAM.
+		\item Map general purpose event codes to actions.
+	\end{itemize}
+
+	\subsection{Pulsers}
+	\begin{itemize}
+		\item Enable/disable pulser.
+		\item Program 16-bit pulser pulse width.
+		\item Program 32-bit pulser delay.
+	\end{itemize}
+
+	\subsection{Delayed Pulsers}
+	\begin{itemize}
+		\item Enable/disable delayed pulser.
+		\item Program 16-bit delayed pulser prescaler.
+		\item Program 32-bit delayed pulser pulse width.
+		\item Program 32-bit pulser delay.
+	\end{itemize}
+
+	\subsection{Prescalers}
+	\begin{itemize}
+		\item Set prescalers.
+	\end{itemize}
+
+	\subsection{Front Panel Mux}
+	\begin{itemize}
+		\item Select front panel TTL outputs.
+		\item Select front panel universal outputs.
+	\end{itemize}
+
+	\subsection{Frequency Mode CML Outputs}
+	\begin{itemize}
+		\item Set all CML outputs to frequency mode.
+		\item Enalbe/disable CML output.
+		\item Select CML output and program its prescaler
+	\end{itemize}
+
+	\subsection{Clock}
+	\begin{itemize}
+		\item Program clock system to desired frequency.
+		\item Select internal source.
+	\end{itemize}
+
+	\subsection{Misc}
+	\begin{itemize}
+		\item Read firmware version.
+		\item Enable/disable EVR.
+	\end{itemize}
+
+\section{Staged Delivery}
+	\subsection{Pulsers}
+	\begin{itemize}
+		\item Setup repository, EPICS, and IOC.
+		\item Initialize clock system and enable EVR.
+		\item Map events to actions.
+		\item Add all pulsers to database.
+		\item Enable/disable pulser.
+		\item Control pulse width and delay of pulsers.
+	\end{itemize}
+
+	\subsection{Delayed Pulsers}
+	\begin{itemize}
+		\item Add all PDP outputs to database.
+		\item Control prescalers, delays, and pulse widths.
+	\end{itemize}
+
+	\subsection{Front Panel Mux}
+	\begin{itemize}
+		\item Multiplex all sources to all front panel outputs.
+	\end{itemize}
+
+	\subsection{Misc}
+	\begin{itemize}
+		\item Enable/disable card.
+		\item Read firmware version.
+	\end{itemize}
+
+	\subsection{CML}
+	\begin{itemize}
+		\item Operate CML in frequency mode.
+		\item Set prescaler for each output.
+	\end{itemize}
+
+	\subsection{Scope}
+	\begin{itemize}
+		\item Monitor event receiver output on scope.
+	\end{itemize}
+
+\end{document}

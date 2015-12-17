@@ -6,7 +6,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTAmbbiLITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
@@ -16,10 +16,10 @@
  */
 
 /*
- * @file 	longout.c
+ * @file 	mbbi.c
  * @author	Abdallah Ismail (abdallah.ismail@sesame.org.jo)
- * @date 	2014-10-31
- * @brief	Implements epics device support layer for the VME-EVG-230/RF timing card
+ * @date 	11/9/2015
+ * @brief	Implements epics device support layer for the PMC-EVR230 event receiver
  */
 
 /*Standard includes*/
@@ -33,9 +33,10 @@
 /*EPICS includes*/
 #include <epicsExport.h>
 #include <devSup.h>
+#include <errlog.h>
 #include <dbAccess.h>
 #include <recSup.h>
-#include <longoutRecord.h>
+#include <mbbiRecord.h>
 
 /*Application includes*/
 #include "parse.h"
@@ -50,8 +51,8 @@ static	uint32_t	ioCount;
 
 /*Function prototypes*/
 static	long	init		(int after);
-static	long	initRecord	(longoutRecord *record);
-static 	long	ioRecord	(longoutRecord *record);
+static	long	initRecord	(mbbiRecord *record);
+static 	long	ioRecord	(mbbiRecord *record);
 static	void*	thread		(void* arg);
 
 /*Function definitions*/
@@ -82,7 +83,7 @@ init(int after)
  * @return	0 on success, -1 on failure.
  */
 static long 
-initRecord(longoutRecord *record)
+initRecord(mbbiRecord *record)
 {
 	int32_t	status;
 
@@ -91,13 +92,13 @@ initRecord(longoutRecord *record)
 		printf("[evr][initRecord] Unable to initialize %s: Too many records\r\n", record->name);
 		return -1;
 	}
-	if (record->out.type != INST_IO) 
+	if (record->inp.type != INST_IO) 
 	{
 		printf("[evr][initRecord] Unable to initialize %s: Illegal io type\r\n", record->name);
 		return -1;
 	}
 
-	status				=	parse(&io[ioCount], record->out.value.instio.string);
+	status			=	parse(&io[ioCount], record->inp.value.instio.string);
 	if (status < 0)
 	{
 		printf("[evr][initRecord] Unable to initialize %s: Could not parse parameters\r\n", record->name);
@@ -123,15 +124,13 @@ initRecord(longoutRecord *record)
  * This function is called by record support to perform IO on the record
  * This function attemps the following:
  * 	Checks record parameters.
- * 	Parses IO string
- * 	Sets record's private structure
- * 	Starts thread that performs asynchronous IO on the record
+ * 	Executes record IO.
  *
- * @param	record	:	Pointer to record being initializes
- * @return	0 on success, -1 on failure
+ * @param	record	:	Pointer to record being initialized.
+ * @return	0 on success, -1 on failure.
  */
 static long 
-ioRecord(longoutRecord *record)
+ioRecord(mbbiRecord *record)
 {
 	int32_t		status	=	0;
 	io_t*		private	=	(io_t*)record->dpvt;
@@ -199,20 +198,17 @@ void*
 thread(void* arg)
 {
 	int			status	=	0;
-	longoutRecord*	record	=	(longoutRecord*)arg;
+	mbbiRecord*	record	=	(mbbiRecord*)arg;
 	io_t*		private	=	(io_t*)record->dpvt;
+	uint8_t		source;	
 
 	/*Detach thread*/
 	pthread_detach(pthread_self());
 
-	if (strcmp(private->command, "setMap") == 0)
-		status	=	evr_setMap(private->device, private->parameter, record->val);
-	else if (strcmp(private->command, "setPrescaler") == 0)
-		status	=	evr_setPrescaler(private->device, private->parameter, record->val);
-	else if (strcmp(private->command, "setPdpPrescaler") == 0)
-		status	=	evr_setPdpPrescaler(private->device, private->parameter, record->val);
-	else if (strcmp(private->command, "setCmlPrescaler") == 0)
-		status	=	evr_setCmlPrescaler(private->device, private->parameter, record->val);
+	if (strcmp(private->command, "getTTLSource") == 0)
+		status	=	evr_getTTLSource(private->device, private->parameter, &source);
+	else if (strcmp(private->command, "getUNIVSource") == 0)
+		status	=	evr_getUNIVSource(private->device, private->parameter, &source);
 	else
 	{
 		printf("[evr][thread] Unable to io %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);
@@ -223,6 +219,7 @@ thread(void* arg)
 		printf("[evr][thread] Unable to io %s\r\n", record->name);
 		private->status	=	-1;
 	}
+	record->rval	=	source;
 
 	/*Process record*/
 	dbScanLock((struct dbCommon*)record);
@@ -239,7 +236,7 @@ struct devsup {
     DEVSUPFUN init_record;
     DEVSUPFUN get_ioint_info;
     DEVSUPFUN io;
-} longoutevr =
+} mbbievr =
 {
     5,
     NULL,
@@ -248,4 +245,4 @@ struct devsup {
     NULL,
     ioRecord
 };
-epicsExportAddress(dset, longoutevr);
+epicsExportAddress(dset, mbbievr);

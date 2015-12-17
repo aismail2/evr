@@ -16,7 +16,7 @@
  */
 
 /*
- * @file 	longout.c
+ * @file 	mbbo.c
  * @author	Abdallah Ismail (abdallah.ismail@sesame.org.jo)
  * @date 	2014-10-31
  * @brief	Implements epics device support layer for the VME-EVG-230/RF timing card
@@ -35,7 +35,7 @@
 #include <devSup.h>
 #include <dbAccess.h>
 #include <recSup.h>
-#include <longoutRecord.h>
+#include <mbboRecord.h>
 
 /*Application includes*/
 #include "parse.h"
@@ -50,8 +50,8 @@ static	uint32_t	ioCount;
 
 /*Function prototypes*/
 static	long	init		(int after);
-static	long	initRecord	(longoutRecord *record);
-static 	long	ioRecord	(longoutRecord *record);
+static	long	initRecord	(mbboRecord *record);
+static 	long	ioRecord	(mbboRecord *record);
 static	void*	thread		(void* arg);
 
 /*Function definitions*/
@@ -82,7 +82,7 @@ init(int after)
  * @return	0 on success, -1 on failure.
  */
 static long 
-initRecord(longoutRecord *record)
+initRecord(mbboRecord *record)
 {
 	int32_t	status;
 
@@ -131,7 +131,7 @@ initRecord(longoutRecord *record)
  * @return	0 on success, -1 on failure
  */
 static long 
-ioRecord(longoutRecord *record)
+ioRecord(mbboRecord *record)
 {
 	int32_t		status	=	0;
 	io_t*		private	=	(io_t*)record->dpvt;
@@ -199,20 +199,16 @@ void*
 thread(void* arg)
 {
 	int			status	=	0;
-	longoutRecord*	record	=	(longoutRecord*)arg;
+	mbboRecord*	record	=	(mbboRecord*)arg;
 	io_t*		private	=	(io_t*)record->dpvt;
 
 	/*Detach thread*/
 	pthread_detach(pthread_self());
 
-	if (strcmp(private->command, "setMap") == 0)
-		status	=	evr_setMap(private->device, private->parameter, record->val);
-	else if (strcmp(private->command, "setPrescaler") == 0)
-		status	=	evr_setPrescaler(private->device, private->parameter, record->val);
-	else if (strcmp(private->command, "setPdpPrescaler") == 0)
-		status	=	evr_setPdpPrescaler(private->device, private->parameter, record->val);
-	else if (strcmp(private->command, "setCmlPrescaler") == 0)
-		status	=	evr_setCmlPrescaler(private->device, private->parameter, record->val);
+	if (strcmp(private->command, "setTTLSource") == 0)
+		status	=	evr_setTTLSource(private->device, private->parameter, record->rval);
+	else if (strcmp(private->command, "setUNIVSource") == 0)
+		status	=	evr_setUNIVSource(private->device, private->parameter, record->rval);
 	else
 	{
 		printf("[evr][thread] Unable to io %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);
@@ -239,7 +235,7 @@ struct devsup {
     DEVSUPFUN init_record;
     DEVSUPFUN get_ioint_info;
     DEVSUPFUN io;
-} longoutevr =
+} mbboevr =
 {
     5,
     NULL,
@@ -248,4 +244,4 @@ struct devsup {
     NULL,
     ioRecord
 };
-epicsExportAddress(dset, longoutevr);
+epicsExportAddress(dset, mbboevr);
