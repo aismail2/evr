@@ -13,25 +13,24 @@ All control servers at SESAME run on Linux/x86 platforms. While the VME-EVR230 i
 Features
 ========
 The driver implements the following features:
-* Enable/disable the device.
-* Set events and actions via the event mapping RAM.
-* Control the widths and delays of pulser outputs (OTP).
-* Control the prescalers, widths, and delays of extended pulser outputs (PDP).
-* Control the prescalers or prescaler outputs.
-* Multiplex the front panel.
-* Process external event and external event input.
+* Event decoding		: Map events to actions.
+* Pulsers (OTP)			: Enable/disable, set delays and widths.
+* Extended pulsers (PDP): Enable/disable, set prescalers, delays, and widths.
+* Prescalers			: Set prescalers.
+* TTL outputs			: Select sources for all front panel TTL outputs.
+* UNIV outputs			: Select sources for all front panel UNIV outputs.
+* CML outputs			: Set prescalers for CML outputs in frequency mode.
+* Clock					: Set clock divisor.
 
 The driver does not implement the following features:
 * Trigger events.
-* Event decoder events.
+* Special events.
 * Event FIFO and timestamp events.
 * Distributed bus and data transmission.
 * Level outputs.
-* Front panel CML outputs (VME-EVR-230RF only).
 * Interlocks.
 * Interrupts.
 
-
 Installation
 ============
-Clone the repository and integrate the driver with your EPICS/support framework. Look in the "evr" folder for examples of database and startup files.
+Clone the repository and integrate the driver with your EPICS/support framework.
