@@ -97,7 +97,7 @@ initRecord(mbboRecord *record)
 		return -1;
 	}
 
-	status				=	parse(&io[ioCount], record->out.value.instio.string);
+	status				=	evr_parse(&io[ioCount], record->out.value.instio.string);
 	if (status < 0)
 	{
 		printf("[evr][initRecord] Unable to initialize %s: Could not parse parameters\r\n", record->name);

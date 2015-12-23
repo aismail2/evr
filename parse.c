@@ -7,7 +7,7 @@
 
 /*Macros*/
 long
-parse(io_t *io, char *parameters)
+evr_parse(io_t *io, char *parameters)
 {
 	uint32_t	i;
 	char		*token;
