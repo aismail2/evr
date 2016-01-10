@@ -2048,7 +2048,7 @@ evr_getFirmwareVersion(void* dev, uint16_t *version)
 }
 
 long
-evr_clearRxViolation(void* dev)
+evr_resetRxViolation(void* dev)
 {
 	uint16_t	data;
 	int32_t		status;

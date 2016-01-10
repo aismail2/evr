@@ -213,8 +213,8 @@ thread(void* arg)
 		status	=	evr_enablePdp(private->device, private->parameter, record->rval);
 	else if (strcmp(private->command, "enableCml") == 0)
 		status	=	evr_enableCml(private->device, private->parameter, record->rval);
-	else if (strcmp(private->command, "clearRxViolation") == 0)
-		status	=	evr_clearRxViolation(private->device);
+	else if (strcmp(private->command, "resetRxViolation") == 0)
+		status	=	evr_resetRxViolation(private->device);
 	else
 	{
 		printf("[evr][thread] Unable to io %s: Do not know how to process \"%s\" requested by %s\r\n", record->name, private->command, record->name);

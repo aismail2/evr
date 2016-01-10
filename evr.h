@@ -163,7 +163,7 @@ long	evr_enableCml			(void* device, uint8_t cml, bool enable);
 long	evr_isCmlEnabled		(void* device, uint8_t cml);
 long	evr_setCmlPrescaler		(void* device, uint8_t cml, uint32_t prescaler);
 long	evr_getCmlPrescaler		(void* device, uint8_t cml, uint32_t *prescaler);
-long	evr_clearRxViolation	(void* device);
+long	evr_resetRxViolation	(void* device);
 long	evr_isRxViolation		(void* device);
 
 #endif /*__EVR_H__*/
