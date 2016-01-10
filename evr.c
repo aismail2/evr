@@ -2033,7 +2033,6 @@ evr_getFirmwareVersion(void* dev, uint16_t *version)
 		return -1;
 	}
 
-	/*Write new event*/
 	status	=	readreg(device, REGISTER_FIRMWARE, version);
 	if (status < 0)
 	{
@@ -2046,6 +2045,79 @@ evr_getFirmwareVersion(void* dev, uint16_t *version)
 	pthread_mutex_unlock(&device->mutex);
 
 	return 0;
+}
+
+long
+evr_clearRxViolation(void* dev)
+{
+	uint16_t	data;
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][clearRxViolation] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Read control register*/
+	status	=	readreg(device, REGISTER_CONTROL, &data);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][clearRxViolation] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	status	=	writereg(device, REGISTER_CONTROL, data|CONTROL_RXVIO);
+	if (status < 0)
+	{
+		printf("\x1B[31m[evr][clearRxVio] Couldn't write to control register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return 0;
+}
+
+long
+evr_isRxViolation(void* dev)
+{
+	uint16_t	data	=	0;
+	int32_t		status;
+	device_t	*device	=	(device_t*)dev;
+
+	/*Lock mutex*/
+	pthread_mutex_lock(&device->mutex);
+
+	/*Check inputs*/
+	if (!dev)
+	{
+		printf("\x1B[31m[evr][isRxViolation] Null pointer to device\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	status	=	readreg(device, REGISTER_CONTROL, &data);
+	if (status < 0)
+	{ 
+		printf("\x1B[31m[evr][isRxViolation] Couldn't read register\n\x1B[0m");
+		pthread_mutex_unlock(&device->mutex);
+		return -1;
+	}
+
+	/*Unlock mutex*/
+	pthread_mutex_unlock(&device->mutex);
+
+	return (data&CONTROL_RXVIO);
 }
 
 /**

@@ -83,6 +83,7 @@ typedef enum
 #define CONTROL_EVR_ENABLE	0x8000
 #define CONTROL_MAP_ENABLE	0x0200
 #define CONTROL_FLUSH		0x0080
+#define CONTROL_RXVIO		0x0001
 #define PULSE_ENABLE_ALL	0x03FF
 #define PULSE_SELECT_OFFSET	16
 #define FP_MUX_PDP0			0
@@ -162,5 +163,7 @@ long	evr_enableCml			(void* device, uint8_t cml, bool enable);
 long	evr_isCmlEnabled		(void* device, uint8_t cml);
 long	evr_setCmlPrescaler		(void* device, uint8_t cml, uint32_t prescaler);
 long	evr_getCmlPrescaler		(void* device, uint8_t cml, uint32_t *prescaler);
+long	evr_clearRxViolation	(void* device);
+long	evr_isRxViolation		(void* device);
 
 #endif /*__EVR_H__*/
