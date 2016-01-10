@@ -2047,6 +2047,12 @@ evr_getFirmwareVersion(void* dev, uint16_t *version)
 	return 0;
 }
 
+/**
+ * @brief	Resets the rx violation flag.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @return	0 on success, -1 on failure
+ */
 long
 evr_resetRxViolation(void* dev)
 {
@@ -2088,6 +2094,12 @@ evr_resetRxViolation(void* dev)
 	return 0;
 }
 
+/**
+ * @brief	Tests if rx violation flag is set.
+ *
+ * @param	*dev	:	A pointer to the device being acted upon
+ * @return	0 for false, 1 for true, -1 on failure
+ */
 long
 evr_isRxViolation(void* dev)
 {
